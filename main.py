@@ -12,6 +12,27 @@ import mydata
 import preprocess
 from models import Linear_classifiers
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+def my_collate(batch):
+
+    input_ids = [item[0] for item in batch]
+    token_type_ids = [item[1] for item in batch]
+    attention_mask = [item[2] for item in batch]
+    valid_indices = [item[3] for item in batch]
+                
+    valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
+    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
+    token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
+    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
+
+    bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
+
+    target_s = [torch.LongTensor(item[4]).to(device) for item in batch]
+    target_f = [torch.LongTensor(item[5]).to(device) for item in batch]
+    target_i = [torch.LongTensor(item[6]).to(device) for item in batch]
+
+    return bert_input, valid_indices, target_s, target_f, target_i
 
 if __name__ == '__main__':
 
@@ -24,8 +45,6 @@ if __name__ == '__main__':
     bert_embed_size = 768
 
     fine_tune  = True
-
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     words, senses, clauses, integration_labels, tr_sents, tr_targets = preprocess.encode2()
     _, _, _, _, te_sents, te_targets = preprocess.encode2()
@@ -38,7 +57,7 @@ if __name__ == '__main__':
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=mydata.my_collate)
+    loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -58,18 +77,10 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, item in enumerate(loader):
-            input_ids, token_type_ids, attention_mask, valid_indices, sense_batch, frg_batch, inter_batch = [i for i in item]
+        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(loader):
 
             if fine_tune == False:
                 with torch.no_grad():
-                    valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
-                    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
-                    token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
-                    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
-
-                    bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
-
                     bert_outputs = bert_model(**bert_input)
                     embeddings = bert_outputs.last_hidden_state
 
@@ -78,12 +89,6 @@ if __name__ == '__main__':
                         for embeds, valid in zip(embeddings, valid_indices)]
 
             else:
-                valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
-                input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
-                token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
-                attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
-
-                bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
                 bert_outputs = bert_model(**bert_input)
                 embeddings = bert_outputs.last_hidden_state
 
@@ -94,11 +99,11 @@ if __name__ == '__main__':
             batch_size = len(valid_embeds)
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
-            padded_sense = pad_sequence(sense_batch, batch_first=True, padding_value=0.0)
-            padded_frg = pad_sequence(frg_batch, batch_first=True, padding_value=0.0)
-            padded_inter = pad_sequence(inter_batch, batch_first=True, padding_value=0.0)
+            padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
+            padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
+            padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
-            #print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
+            print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
 
             sense_pred, frg_pred, inter_pred = tagging_model(padded_input)
 
