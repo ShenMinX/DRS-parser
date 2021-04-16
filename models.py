@@ -16,8 +16,8 @@ class Linear_classifiers(nn.Module):
         inputs = self.dropout(embeded)
 
         output_syms = self.output_s(inputs)
-        output_frgs = self.output_s(inputs)
-        output_intergs = self.output_s(inputs)
+        output_frgs = self.output_f(inputs)
+        output_intergs = self.output_i(inputs)
 
         return output_syms, output_frgs, output_intergs
         
