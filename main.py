@@ -40,31 +40,31 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 15
+    epochs = 1
 
     bert_embed_size = 768
 
-    fine_tune  = True
+    fine_tune  = False
     
-    words, senses, clauses, integration_labels, tr_sents, tr_targets = preprocess.encode2()
-    _, _, _, _, te_sents, te_targets = preprocess.encode2()
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_set = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, clauses.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    train_set = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
     tagging_model = Linear_classifiers(
         embed_size = bert_embed_size, 
         syms_size = len(senses.token_to_ix), 
-        frgs_size = len(clauses.token_to_ix), 
+        frgs_size = len(fragment.token_to_ix), 
         intergs_size = len(integration_labels.token_to_ix),
         dropout_rate = 0.2
         ).to(device)
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(loader):
+        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -105,15 +105,15 @@ if __name__ == '__main__':
 
             print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
 
-            sense_pred, frg_pred, inter_pred = tagging_model(padded_input)
+            sense_out, frg_out, inter_out = tagging_model(padded_input)
 
             batch_loss = 0.0
             max_length = padded_input.shape[1]
 
             for i in range(padded_input.shape[1]): 
-                sense_loss = lossfunc(sense_pred[:,i,:], padded_sense[:,i])
-                frg_loss = lossfunc(frg_pred[:,i,:], padded_frg[:,i])
-                inter_loss = lossfunc(frg_pred[:,i,:], padded_inter[:,i])
+                sense_loss = lossfunc(sense_out[:,i,:], padded_sense[:,i])
+                frg_loss = lossfunc(frg_out[:,i,:], padded_frg[:,i])
+                inter_loss = lossfunc(inter_out[:,i,:], padded_inter[:,i])
 
                 batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
 
@@ -131,5 +131,53 @@ if __name__ == '__main__':
         print(e, ". total loss:", total_loss)
 
         e+=1
+
+
+
+    #eval:
+
+    test_set = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+
+    with torch.no_grad():
+
+        test_loader = data.DataLoader(dataset=test_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+
+        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
+
+            bert_outputs = bert_model(**bert_input)
+            embeddings = bert_outputs.last_hidden_state
+
+            valid_embeds = [
+                embeds[torch.nonzero(valid).squeeze(1)]
+                for embeds, valid in zip(embeddings, valid_indices)]
+
+            batch_size = len(valid_embeds)
+
+            seq_len = [s.shape[0] for s in target_s]
+
+            padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+            padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
+            padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
+            padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
+
+            sense_out, frg_out, inter_out = tagging_model(padded_input)
+
+            sense_max = torch.argmax(sense_out, 2)
+            frg_max = torch.argmax(frg_out, 2)
+            inter_max = torch.argmax(inter_out, 2)
+
+            unpad_sense = [sense_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+            unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+            unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+
+            sense_pred = [preprocess.ixs_to_tokens(senses.ix_to_token, seq) for seq in unpad_sense]
+            frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
+            inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
+
+
+
+
+
+
 
         
