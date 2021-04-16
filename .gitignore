@@ -3,4 +3,4 @@
 .mypy_cache/
 .vscode/settings.json
 Data/
-.gitignore.txt
+.gitignore
