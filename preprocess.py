@@ -8,6 +8,7 @@ import json
 import mask
 import symbols
 import sys
+import re
 
 class dictionary():
 
@@ -47,11 +48,22 @@ def dictlist_to_tuple(dict):
 
 def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
     words = dictionary()
+    sent_char = dictionary()
     senses = dictionary()
     clauses = dictionary()
     integration_labels = dictionary()
 
+    sent_char.insert("[break]")
+
+    senses.insert("[none]")
+    senses.insert("[break]")
+
+    SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
+
     sents = []
+    char_sents = []
+    
+    target_senses = []
     targets = []
     max_seq_len = 0
     for i, (sentence, fragments, unaligned) in enumerate(
@@ -65,7 +77,9 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
         fragments = address.debruijnify(fragments)
 
         sent = ["-BOS-"]
-        target = [("-BOS-","-BOS-", "-BOS-")]
+        char_sent = ["-BOS-"]
+        target = [("-BOS-", "-BOS-")]
+        sense_seq = ["-BOS-"]
 
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
@@ -75,22 +89,56 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
                 integration_label = {}
 
             words.insert(word)
-            senses.insert(dictlist_to_tuple(syms))
+            for ch in word:
+                sent_char.insert(ch)
+                char_sent.append(ch)
+            char_sent.append("break")
+
+            if "work" in syms and "\"v.00\"" in syms:
+                for ch in syms["work"]:
+                    senses.insert(ch)
+                    sense_seq.append(ch)
+                match = SENSE_STRING_PATTERN.search(syms["\"v.00\""])
+                senses.insert("["+match.group('pos')+"]")
+                sense_seq.append("["+match.group('pos')+"]")
+                senses.insert("["+match.group('number')+"]")
+                sense_seq.append("["+match.group('number')+"]")
+                sense_seq.append("[break]")
+            
+            elif "\"tom\"" in syms:
+                for ch in syms["\"tom\""]:
+                    if ch !="\"":
+                        senses.insert(ch)
+                        sense_seq.append(ch)
+                sense_seq.append("[break]")
+
+            else:
+                sense_seq.append("[none]")
+                sense_seq.append("[break]")
+        
             clauses.insert(tuple(fragment))
             integration_labels.insert(dictlist_to_tuple(integration_label))
             
             sent.append(word)
-            target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
+            target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
+
+        del sense_seq[-1]
+        sense_seq.append("-EOS-")
+
+        del char_sent[-1]
+        char_sent.append("-EOS-")
 
         sent.append("-EOS-")
-        target.append(("-EOS-","-EOS-", "-EOS-"))
+        target.append(("-EOS-", "-EOS-"))
 
         sents.append(sent)
+        char_sents.append(char_sent)
         targets.append(target)
+        target_senses.append(sense_seq)
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 
-    return words, senses, clauses, integration_labels, sents, targets
+    return words, sent_char, senses, clauses, integration_labels, sents, char_sents, targets, target_senses
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
@@ -140,12 +188,9 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 if __name__ == '__main__':
     #encode()
-    a, b, c, d,e,fo=encode2()
-    for s,t in zip(e,fo):
-        sent, target_s, target_f, traget_i = list(map(lambda x: tokens_to_ixs(x[0], x[1]),[(
-            a.token_to_ix, s), (
-                b.token_to_ix, [w[0] for w in t]), (
-                    c.token_to_ix, [w[1] for w in t]), (
-                        d.token_to_ix, [w[2] for w in t])]))
+    words, sent_char, senses, clauses, integration_labels, sents, char_sents, targets, target_senses =encode2()
 
-        print(len(s),traget_i)
+    # for seq in target_senses:
+    #     print(seq)
+    for sen in char_sents:
+        print(sen)

@@ -7,7 +7,7 @@ import re
 
 
 def mask_fragment(fragment):
-    symbols = collections.defaultdict(list)
+    symbols = collections.defaultdict(str)
     return tuple(mask_clause(c, symbols) for c in fragment), symbols
 
 
@@ -21,13 +21,13 @@ def mask_clause(clause, symbols):
         pos = sense_string[1:2]
         number = sense_string[3:5]
         masked_sense_string = '"{}.00"'.format(pos)
-        symbols['work'].append(concept)
-        symbols[masked_sense_string].append(sense_string)
+        symbols['work'] = concept
+        symbols[masked_sense_string] = sense_string
         clause[1] = 'work'
         clause[2] = masked_sense_string
     # Strings
     if drs.is_string(clause[-1]) and not drs.is_constant(clause[-1]):
-        symbols['"tom"'].append(clause[-1])
+        symbols['"tom"'] = clause[-1]
         clause[-1] = '"tom"'
     # Return
     return tuple(clause)
