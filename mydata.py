@@ -46,7 +46,7 @@ def valid_tokenizing(sent, tokenizer, device):
 class Dataset(data.Dataset):
 
     def __init__(self, sents, char_sents, targets, target_senses, word_to_ix, \
-        char_to_ix, sense_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device): 
+        char_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device): 
         'Initialization'
         self.sents = sents
         self.char_sents = char_sents
@@ -54,7 +54,6 @@ class Dataset(data.Dataset):
         self.target_senses = target_senses
 
         self.char_to_ix = char_to_ix
-        self.sense_to_ix = sense_to_ix
         self.fragment_to_ix = fragment_to_ix
         self.itergration_to_ix = itergration_to_ix
         self.tokenizer = tokenizer
@@ -71,7 +70,7 @@ class Dataset(data.Dataset):
 
         char_sent, target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
             self.char_to_ix, self.char_sents[index]),(
-                self.sense_to_ix, self.target_senses[index]), (
+                self.char_to_ix, self.target_senses[index]), (
                     self.fragment_to_ix, [t[0] for t in target]), (
                         self.itergration_to_ix, [t[1] for t in target])]))
                         

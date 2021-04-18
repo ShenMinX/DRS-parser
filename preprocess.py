@@ -48,15 +48,13 @@ def dictlist_to_tuple(dict):
 
 def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
     words = dictionary()
-    sent_char = dictionary()
-    senses = dictionary()
+    chars = dictionary()
     clauses = dictionary()
     integration_labels = dictionary()
 
-    sent_char.insert("[break]")
+    chars.insert("[break]")
+    chars.insert("[none]")
 
-    senses.insert("[none]")
-    senses.insert("[break]")
 
     SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
 
@@ -79,7 +77,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
         sent = ["-BOS-"]
         char_sent = ["-BOS-"]
         target = [("-BOS-", "-BOS-")]
-        sense_seq = ["-BOS-"]
+        sense_seq = []
 
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
@@ -90,25 +88,25 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
 
             words.insert(word)
             for ch in word:
-                sent_char.insert(ch)
+                chars.insert(ch)
                 char_sent.append(ch)
             char_sent.append("break")
 
             if "work" in syms and "\"v.00\"" in syms:
                 for ch in syms["work"]:
-                    senses.insert(ch)
+                    chars.insert(ch)
                     sense_seq.append(ch)
                 match = SENSE_STRING_PATTERN.search(syms["\"v.00\""])
-                senses.insert("["+match.group('pos')+"]")
+                chars.insert("["+match.group('pos')+"]")
                 sense_seq.append("["+match.group('pos')+"]")
-                senses.insert("["+match.group('number')+"]")
+                chars.insert("["+match.group('number')+"]")
                 sense_seq.append("["+match.group('number')+"]")
                 sense_seq.append("[break]")
             
             elif "\"tom\"" in syms:
                 for ch in syms["\"tom\""]:
                     if ch !="\"":
-                        senses.insert(ch)
+                        chars.insert(ch)
                         sense_seq.append(ch)
                 sense_seq.append("[break]")
 
@@ -138,7 +136,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 
-    return words, sent_char, senses, clauses, integration_labels, sents, char_sents, targets, target_senses
+    return words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
@@ -188,7 +186,7 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 if __name__ == '__main__':
     #encode()
-    words, sent_char, senses, clauses, integration_labels, sents, char_sents, targets, target_senses =encode2()
+    words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses =encode2()
 
     # for seq in target_senses:
     #     print(seq)

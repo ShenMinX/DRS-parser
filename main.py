@@ -4,13 +4,14 @@ from torch.nn.utils.rnn import pad_sequence
 import torch.utils.data as data
 
 import re
+import random
 
 from tokenizers import BertWordPieceTokenizer
 from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
 
 import mydata
 import preprocess
-from models import Linear_classifiers
+from models import Linear_classifiers, Encoder, Decoder
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -45,14 +46,24 @@ if __name__ == '__main__':
 
     bert_embed_size = 768
 
+    enc_embed_size = 150
+
+    enc_hid_size = 200
+
+    dec_embed_size = 150
+
+    dec_hid_size = 200
+
+    eps=1e-7
+
     fine_tune  = False
     
-    words, sent_char, senses, fragment, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    words, chars, fragments, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_set = mydata.Dataset(sents, char_sents, targets, target_senses, words.token_to_ix, sent_char.token_to_ix,\
-         senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    train_set = mydata.Dataset(sents, char_sents, targets, target_senses, words.token_to_ix, chars.token_to_ix,\
+         fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
@@ -64,10 +75,28 @@ if __name__ == '__main__':
 
     tagging_model = Linear_classifiers(
         embed_size = bert_embed_size, 
-        frgs_size = len(fragment.token_to_ix), 
+        frgs_size = len(fragments.token_to_ix), 
         intergs_size = len(integration_labels.token_to_ix),
         dropout_rate = 0.2
         ).to(device)
+
+    model_encoder = Encoder(
+                  vocab=chars.token_to_ix, 
+                  hidden_size=enc_hid_size, 
+                  embed_size=enc_embed_size).to(device)
+
+    model_decoder = Decoder(
+                      vocab=chars.token_to_ix, 
+                      encode_size=enc_hid_size*2, 
+                      hidden_size=dec_hid_size, 
+                      embed_size=dec_embed_size,
+                      device=device
+                     ).to(device)
+
+    criterion = nn.NLLLoss()
+
+    enc_optimizer = torch.optim.Adam(model_encoder.parameters(),lr=learning_rate)
+    dec_optimizer = torch.optim.Adam(model_decoder.parameters(),lr=learning_rate)
 
     optimizer = torch.optim.Adam(tagging_model.parameters(),lr=learning_rate)
 
@@ -99,29 +128,57 @@ if __name__ == '__main__':
             batch_size = len(valid_embeds)
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+            padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
             padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
             padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
             padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
-            print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
+            #print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
 
             frg_out, inter_out = tagging_model(padded_input)
 
             batch_loss = 0.0
             max_length = padded_input.shape[1]
+            max_tl = padded_sense.shape[1]
 
             for i in range(padded_input.shape[1]): 
                 frg_loss = lossfunc(frg_out[:,i,:], padded_frg[:,i])
                 inter_loss = lossfunc(inter_out[:,i,:], padded_inter[:,i])
 
                 batch_loss = batch_loss + frg_loss + inter_loss
+            
+            enc_out, enc_hidden = model_encoder(padded_char_input)
+
+            dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
+
+            with torch.no_grad():
+                rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
+            
+            for i in range(max_tl):
+    
+                output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input) # batch x vocab_size
+                
+                _, dec_pred = torch.max(output, 1) # batch_size vector
+
+                if random.randint(0, 11) > 5:          
+                    dec_input = padded_sense[:,i].view(batch_size, 1)
+                else:
+                    dec_input = dec_pred.view(batch_size, 1)
+
+                p_step_loss = criterion(torch.log(output + eps), padded_sense[:,i])
+
+                batch_loss = batch_loss + p_step_loss
 
             optimizer.zero_grad()
+            enc_optimizer.zero_grad()
+            dec_optimizer.zero_grad()
             if fine_tune == True:
                 bert_optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
+            enc_optimizer.step()
+            dec_optimizer.step()
             if fine_tune == True:
                 bert_optimizer.step()
 
@@ -136,10 +193,10 @@ if __name__ == '__main__':
 
     #eval:
 
-    _, _, _, _, _, te_sents, te_char_sents, te_targets, te_target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    _, _, _, _, te_sents, te_char_sents, te_targets, te_target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
-    test_set = mydata.Dataset(te_sents, te_char_sents, te_targets, te_target_senses, words.token_to_ix, sent_char.token_to_ix,\
-         senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    test_set = mydata.Dataset(te_sents, te_char_sents, te_targets, te_target_senses, words.token_to_ix, chars.token_to_ix,\
+         fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
     with torch.no_grad():
 
@@ -172,7 +229,7 @@ if __name__ == '__main__':
             unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
             unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
-            frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
+            frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
 
