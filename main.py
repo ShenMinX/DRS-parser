@@ -13,6 +13,9 @@ import mydata
 import preprocess
 from models import Linear_classifiers, Encoder, Decoder
 
+from rouge import rouge_n_summary_level
+from rouge import rouge_l_summary_level
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def my_collate(batch):
@@ -199,10 +202,14 @@ if __name__ == '__main__':
          fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
     with torch.no_grad():
+        
+        final_preds = []
 
         test_loader = data.DataLoader(dataset=test_set, batch_size=48, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i) in enumerate(test_loader):
+
+
 
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.last_hidden_state
@@ -216,8 +223,8 @@ if __name__ == '__main__':
             seq_len = [s.shape[0] for s in target_s]
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+            padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
-            padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
             padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
             padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
@@ -226,11 +233,49 @@ if __name__ == '__main__':
             frg_max = torch.argmax(frg_out, 2)
             inter_max = torch.argmax(inter_out, 2)
 
+            max_tl = padded_sense.shape[1]     # max target length
+
+            enc_out, enc_hidden = model_encoder(padded_char_input)
+
+            dec_input = torch.tensor([chars.token_to_ix["-EOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
+
+            rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
+             
+            pred = torch.tensor([],dtype=torch.long).to(device)
+
+            for i in range(max_tl):
+    
+                output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input) # batch x vocab_size
+                
+                _, dec_pred = torch.max(output, 1) # batch_size vector
+
+                pred = torch.cat([pred, dec_pred.view(batch_size, 1)], dim = 1)
+
+                dec_input = dec_pred.view(batch_size, 1)
+            
+            # unpad for evaluation
+            for b in range(batch_size):
+                final_pred = pred[b,:][pred[b,:]!=chars.token_to_ix['[PAD]']].tolist()
+
+                final_preds.append(preprocess.ixs_to_tokens(chars.ix_to_token, final_pred))
+
             unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
             unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
             frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
+        
+        # for p, t in zip(final_preds, te_target_senses):
+        #     print(p, t)
+
+        _, _, rouge_1 = rouge_n_summary_level(final_preds, te_target_senses, 1)
+        print('ROUGE-1: %f' % rouge_1)
+
+        _, _, rouge_2 = rouge_n_summary_level(final_preds, te_target_senses, 2)
+        print('ROUGE-2: %f' % rouge_2)
+        
+        _, _, rouge_l = rouge_l_summary_level(final_preds, te_target_senses) # extremely time consuming...
+        print('ROUGE-L: %f' % rouge_l)
 
 
 
