@@ -42,10 +42,11 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
+    hyper_batch_size = 32
 
     learning_rate = 0.0015
 
-    epochs = 1
+    epochs = 15
 
     bert_embed_size = 768
 
@@ -61,7 +62,7 @@ if __name__ == '__main__':
 
     fine_tune  = False
     
-    words, chars, fragments, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    words, chars, fragments, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -72,7 +73,7 @@ if __name__ == '__main__':
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    train_loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=train_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -159,7 +160,7 @@ if __name__ == '__main__':
                 rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
             
             for i in range(max_tl):
-    
+
                 output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input) # batch x vocab_size
                 
                 _, dec_pred = torch.max(output, 1) # batch_size vector
@@ -196,7 +197,7 @@ if __name__ == '__main__':
 
     #eval:
 
-    _, _, _, _, te_sents, te_char_sents, te_targets, te_target_senses = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    _, _, _, _, te_sents, te_char_sents, te_targets, te_target_senses = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
     test_set = mydata.Dataset(te_sents, te_char_sents, te_targets, te_target_senses, words.token_to_ix, chars.token_to_ix,\
          fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
@@ -205,7 +206,7 @@ if __name__ == '__main__':
         
         final_preds = []
 
-        test_loader = data.DataLoader(dataset=test_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+        test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i) in enumerate(test_loader):
 
@@ -237,7 +238,7 @@ if __name__ == '__main__':
 
             enc_out, enc_hidden = model_encoder(padded_char_input)
 
-            dec_input = torch.tensor([chars.token_to_ix["-EOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
+            dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
 
             rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
              
@@ -270,8 +271,10 @@ if __name__ == '__main__':
 
         n_of_t = 0
         correct = 0
-        for predic, targ in zip(final_preds, target_s):
-            targ_list = targ.tolist()
+        rouge_target = []
+        for predic, targ in zip(final_preds, te_target_senses):
+            targ_list = preprocess.tokens_to_ixs(chars.token_to_ix, targ)
+            rouge_target.append(targ_list)
             min_length = min(len(targ_list), len(predic)) 
             for i in range(min_length):
                 if predic[i]==targ_list[i]:
@@ -281,13 +284,13 @@ if __name__ == '__main__':
         print("Accurancy: ", correct/n_of_t)
 
 
-        _, _, rouge_1 = rouge_n_summary_level(final_preds, te_target_senses, 1)
+        _, _, rouge_1 = rouge_n_summary_level(final_preds, rouge_target, 1)
         print('ROUGE-1: %f' % rouge_1)
 
-        _, _, rouge_2 = rouge_n_summary_level(final_preds, te_target_senses, 2)
+        _, _, rouge_2 = rouge_n_summary_level(final_preds, rouge_target, 2)
         print('ROUGE-2: %f' % rouge_2)
         
-        # _, _, rouge_l = rouge_l_summary_level(final_preds, te_target_senses) # extremely time consuming...
+        # _, _, rouge_l = rouge_l_summary_level(final_preds, rouge_target) # extremely time consuming...
         # print('ROUGE-L: %f' % rouge_l)
 
 
