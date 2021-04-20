@@ -46,6 +46,9 @@ def ixs_to_tokens(ix_to_token, ixs):
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
+def get_words_len(sent):
+    return [1]+[len(w)+1 for w in sent[1:-1]]+[1]
+
 def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
     words = dictionary()
     chars = dictionary()
@@ -120,10 +123,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
             sent.append(word)
             target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
 
-        del sense_seq[-1]
         sense_seq.append("-EOS-")
 
-        del char_sent[-1]
         char_sent.append("-EOS-")
 
         sent.append("-EOS-")

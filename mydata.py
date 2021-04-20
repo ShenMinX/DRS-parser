@@ -68,6 +68,8 @@ class Dataset(data.Dataset):
         sent = self.sents[index]
         target = self.targets[index]
 
+        words_len = preprocess.get_words_len(sent)
+
         char_sent, target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
             self.char_to_ix, self.char_sents[index]),(
                 self.char_to_ix, self.target_senses[index]), (
@@ -76,7 +78,7 @@ class Dataset(data.Dataset):
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i)
+        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len)
 
     
 def my_collate(batch):
@@ -98,22 +100,24 @@ def my_collate(batch):
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
-    return bert_input, valid_indices, char_sent, target_s, target_f, target_i
+    words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
+
+    return bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens
 
 if __name__ == "__main__":
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
 
-    words, sent_char, senses, fragment, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2()
+    words, sent_char, fragment, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2()
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt")
 
     my_data = Dataset(sents,char_sents,targets,target_senses, words.token_to_ix, sent_char.token_to_ix,\
-         senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+         fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
     
     loader = data.DataLoader(dataset=my_data, batch_size=32, shuffle=False, collate_fn=my_collate)
     
-    for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i) in enumerate(loader):
-        print(char_sent)
+    for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens) in enumerate(loader):
+        print(words_lens)
 
         print("-------------------------")
 
