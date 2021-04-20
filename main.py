@@ -257,7 +257,7 @@ if __name__ == '__main__':
             for b in range(batch_size):
                 final_pred = pred[b,:][pred[b,:]!=chars.token_to_ix['[PAD]']].tolist()
 
-                final_preds.append(preprocess.ixs_to_tokens(chars.ix_to_token, final_pred))
+                final_preds.append(final_pred)
 
             unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
             unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
@@ -268,14 +268,27 @@ if __name__ == '__main__':
         # for p, t in zip(final_preds, te_target_senses):
         #     print(p, t)
 
+        n_of_t = 0
+        correct = 0
+        for predic, targ in zip(final_preds, target_s):
+            targ_list = targ.tolist()
+            min_length = min(len(targ_list), len(predic)) 
+            for i in range(min_length):
+                if predic[i]==targ_list[i]:
+                    correct += 1
+            n_of_t += len(targ_list)
+        
+        print("Accurancy: ", correct/n_of_t)
+
+
         _, _, rouge_1 = rouge_n_summary_level(final_preds, te_target_senses, 1)
         print('ROUGE-1: %f' % rouge_1)
 
         _, _, rouge_2 = rouge_n_summary_level(final_preds, te_target_senses, 2)
         print('ROUGE-2: %f' % rouge_2)
         
-        _, _, rouge_l = rouge_l_summary_level(final_preds, te_target_senses) # extremely time consuming...
-        print('ROUGE-L: %f' % rouge_l)
+        # _, _, rouge_l = rouge_l_summary_level(final_preds, te_target_senses) # extremely time consuming...
+        # print('ROUGE-L: %f' % rouge_l)
 
 
 
