@@ -18,8 +18,8 @@ from rouge import rouge_l_summary_level
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-def get_char_context(valid_embeds, words_lens):
-    return [ve.repeat_interleave(wl, dim = 0) for ve, wl in zip(valid_embeds, words_lens)]
+def get_char_context(valid_embeds, words_lens, break_token_idx):
+    return [ve.repeat_interleave(wl, dim = 0).index_fill_(0, br, 0) for ve, wl, br in zip(valid_embeds, words_lens, break_token_idx)]
 
 
 def my_collate(batch):
@@ -43,7 +43,9 @@ def my_collate(batch):
 
     words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
 
-    return bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens
+    break_token_idx = [torch.LongTensor(item[9]).to(device) for item in batch]
+
+    return bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx
 
 if __name__ == '__main__':
 
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens) in enumerate(train_loader):
+        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -137,7 +139,7 @@ if __name__ == '__main__':
                 
             batch_size = len(valid_embeds)
 
-            chars_contexts = get_char_context(valid_embeds, words_lens)
+            chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
             
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
             padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
@@ -224,7 +226,7 @@ if __name__ == '__main__':
 
         test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
-        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens) in enumerate(test_loader):
+        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(test_loader):
 
 
 
@@ -239,7 +241,7 @@ if __name__ == '__main__':
 
             seq_len = [s.shape[0] for s in target_s]
 
-            chars_contexts = get_char_context(valid_embeds, words_lens)
+            chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
             padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)

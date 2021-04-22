@@ -93,7 +93,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
             for ch in word:
                 chars.insert(ch)
                 char_sent.append(ch)
-            char_sent.append("break")
+            char_sent.append("[break]")
 
             if "work" in syms and "\"v.00\"" in syms:
                 for ch in syms["work"]:
