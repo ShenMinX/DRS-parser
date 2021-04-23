@@ -3,9 +3,16 @@ import torch
 import torch.utils.data as data
 import re
 
+import numpy as np
+
 from torch.nn.utils.rnn import pad_sequence
 
 from tokenizers import BertWordPieceTokenizer
+
+def padding(seq, max_len): # outdated
+    sen_pad = np.pad(seq,(0,max(0, max_len - len(seq))),'constant', constant_values = (0))[:max_len]
+    return sen_pad
+
 
 def _valid_wordpiece_indexes(sent, wp_sent): 
     
@@ -45,13 +52,14 @@ def valid_tokenizing(sent, tokenizer, device):
 
 class Dataset(data.Dataset):
 
-    def __init__(self, sents, char_sents, targets, target_senses, word_to_ix, \
+    def __init__(self, sents, char_sents, targets, target_senses, max_sense_lens, word_to_ix, \
         char_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device): 
         'Initialization'
         self.sents = sents
         self.char_sents = char_sents
         self.targets = targets
         self.target_senses = target_senses
+        self.max_sense_lens = max_sense_lens
 
         self.char_to_ix = char_to_ix
         self.fragment_to_ix = fragment_to_ix
@@ -75,16 +83,17 @@ class Dataset(data.Dataset):
         for ix in words_len[1:-1]:
             stack += ix
             break_token_idx.append(stack)
+        
+        target_s = [preprocess.tokens_to_ixs(self.char_to_ix, sense) for sense in self.target_senses[index]]
 
-        char_sent, target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
+        char_sent, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
             self.char_to_ix, self.char_sents[index]),(
-                self.char_to_ix, self.target_senses[index]), (
-                    self.fragment_to_ix, [t[0] for t in target]), (
-                        self.itergration_to_ix, [t[1] for t in target])]))
+                self.fragment_to_ix, [t[0] for t in target]), (
+                    self.itergration_to_ix, [t[1] for t in target])]))
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, break_token_idx)
+        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, break_token_idx, self.max_sense_lens[index])
 
     
 def my_collate(batch):
@@ -102,7 +111,15 @@ def my_collate(batch):
     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
 
     char_sent = [torch.LongTensor(item[4]).to(device) for item in batch]
-    target_s = [torch.LongTensor(item[5]).to(device) for item in batch]
+
+    max_sense_len_batch = max([item[10] for item in batch])
+    target_s = []
+    for item in batch:
+        sense_seq = []
+        for sense in item[5]:
+            sense_seq.append(padding(sense, max_sense_len_batch))
+        target_s.append(torch.LongTensor(sense_seq).to(device))
+
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
@@ -116,16 +133,16 @@ if __name__ == "__main__":
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
 
-    words, sent_char, fragment, integration_labels, sents, char_sents, targets, target_senses = preprocess.encode2()
+    words, sent_char, fragment, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2()
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt")
 
-    my_data = Dataset(sents,char_sents,targets,target_senses, words.token_to_ix, sent_char.token_to_ix,\
+    my_data = Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, sent_char.token_to_ix,\
          fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
     
     loader = data.DataLoader(dataset=my_data, batch_size=32, shuffle=False, collate_fn=my_collate)
     
     for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(loader):
-        print(words_lens)
+        print(target_s)
 
         print("-------------------------")
 

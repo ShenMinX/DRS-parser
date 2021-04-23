@@ -49,7 +49,7 @@ def dictlist_to_tuple(dict):
 def get_words_len(sent):
     return [1]+[len(w)+1 for w in sent[1:-1]]+[1]
 
-def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
+def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
     words = dictionary()
     chars = dictionary()
     clauses = dictionary()
@@ -67,6 +67,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
     target_senses = []
     targets = []
     max_seq_len = 0
+
+    max_sense_lens = []
     for i, (sentence, fragments, unaligned) in enumerate(
             clf.read(data_file), start=1):
         max_seq_len = max(max_seq_len, len(sentence))
@@ -80,7 +82,9 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
         sent = ["-BOS-"]
         char_sent = ["-BOS-"]
         target = [("-BOS-", "-BOS-")]
-        sense_seq = []
+        
+        sense_seqence = []
+        max_sense_len = 0
 
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
@@ -95,6 +99,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
                 char_sent.append(ch)
             char_sent.append("[break]")
 
+            sense_seq = []
+
             if "work" in syms and "\"v.00\"" in syms:
                 for ch in syms["work"]:
                     chars.insert(ch)
@@ -104,18 +110,16 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
                 sense_seq.append("["+match.group('pos')+"]")
                 chars.insert("["+match.group('number')+"]")
                 sense_seq.append("["+match.group('number')+"]")
-                sense_seq.append("[break]")
             
             elif "\"tom\"" in syms:
                 for ch in syms["\"tom\""]:
                     if ch !="\"":
                         chars.insert(ch)
                         sense_seq.append(ch)
-                sense_seq.append("[break]")
 
             else:
-                sense_seq.append("[none]")
-                sense_seq.append("[break]")
+                sense_seq.append("[PAD]")
+
         
             clauses.insert(tuple(fragment))
             integration_labels.insert(dictlist_to_tuple(integration_label))
@@ -123,7 +127,12 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
             sent.append(word)
             target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
 
-        sense_seq.append("-EOS-")
+            sense_seqence.append(sense_seq)
+
+            
+            max_sense_len = max(len(sense_seq), max_sense_len)
+
+        sense_seqence.append(["-EOS-"])
 
         char_sent.append("-EOS-")
 
@@ -133,11 +142,13 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
         sents.append(sent)
         char_sents.append(char_sent)
         targets.append(target)
-        target_senses.append(sense_seq)
+        target_senses.append(sense_seqence)
+        max_sense_lens.append(max_sense_len)
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 
-    return words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses
+
+    return words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
@@ -187,9 +198,9 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 if __name__ == '__main__':
     #encode()
-    words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses =encode2()
+    words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens =encode2()
 
-    # for seq in target_senses:
-    #     print(seq)
-    for sen in char_sents:
-        print(sen)
+    for seq in target_senses:
+        print(seq)
+    # for sen in char_sents:
+    #     print(sen)
