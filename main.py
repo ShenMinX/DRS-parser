@@ -4,6 +4,7 @@ from torch.nn.utils.rnn import pad_sequence
 import torch.utils.data as data
 
 import re
+import numpy as np
 
 from tokenizers import BertWordPieceTokenizer
 from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
@@ -45,19 +46,34 @@ if __name__ == '__main__':
     bert_embed_size = 768
 
     fine_tune  = False
+
+    validation_split = 0.2
+    shuffle_dataset = True
+    random_seed = 33
     
     words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
-    _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_set = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    dataset = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(validation_split * dataset_size))
+
+    if shuffle_dataset:
+        np.random.seed(random_seed)
+        np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
+
+    train_sampler = data.sampler.SubsetRandomSampler(train_indices)
+    valid_sampler = data.sampler.SubsetRandomSampler(val_indices)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    train_loader = data.DataLoader(dataset=train_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=dataset, batch_size=48, sampler=train_sampler, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -82,19 +98,15 @@ if __name__ == '__main__':
             if fine_tune == False:
                 with torch.no_grad():
                     bert_outputs = bert_model(**bert_input)
-                    embeddings = bert_outputs.last_hidden_state
-
-                    valid_embeds = [
-                        embeds[torch.nonzero(valid).squeeze(1)]
-                        for embeds, valid in zip(embeddings, valid_indices)]
 
             else:
                 bert_outputs = bert_model(**bert_input)
-                embeddings = bert_outputs.last_hidden_state
+                
+            embeddings = bert_outputs.last_hidden_state
 
-                valid_embeds = [
-                    embeds[torch.nonzero(valid).squeeze(1)]
-                    for embeds, valid in zip(embeddings, valid_indices)]
+            valid_embeds = [
+                embeds[torch.nonzero(valid).squeeze(1)]
+                for embeds, valid in zip(embeddings, valid_indices)]
                 
             batch_size = len(valid_embeds)
 
@@ -103,7 +115,7 @@ if __name__ == '__main__':
             padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
             padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
-            print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
+            #print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
 
             sense_out, frg_out, inter_out = tagging_model(padded_input)
 
@@ -136,11 +148,12 @@ if __name__ == '__main__':
 
     #eval:
 
-    test_set = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
-
     with torch.no_grad():
 
-        test_loader = data.DataLoader(dataset=test_set, batch_size=48, shuffle=False, collate_fn=my_collate)
+        correct = 0
+        n_of_t = 0
+
+        test_loader = data.DataLoader(dataset=dataset, batch_size=48, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
 
@@ -174,6 +187,13 @@ if __name__ == '__main__':
             frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
+            for ts, ps in zip(target_s, unpad_sense):
+                for s_idx in range(len(ps)):
+                    if ts[s_idx]==ps[s_idx]:
+                        correct +=1
+                n_of_t += ts.shape[0]
+
+    print("Accurancy: ", correct/n_of_t)
 
 
 
