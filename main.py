@@ -38,20 +38,21 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
+    hyper_batch_size = 32
 
     learning_rate = 0.0015
 
-    epochs = 1
+    epochs = 15
 
     bert_embed_size = 768
 
-    fine_tune  = False
+    fine_tune  = True
 
     validation_split = 0.2
     shuffle_dataset = True
     random_seed = 33
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    train_loader = data.DataLoader(dataset=dataset, batch_size=48, sampler=train_sampler, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -150,10 +151,12 @@ if __name__ == '__main__':
 
     with torch.no_grad():
 
-        correct = 0
+        correct_s = 0
+        correct_f = 0
+        correct_i = 0
         n_of_t = 0
 
-        test_loader = data.DataLoader(dataset=dataset, batch_size=48, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
+        test_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
 
@@ -187,13 +190,19 @@ if __name__ == '__main__':
             frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
-            for ts, ps in zip(target_s, unpad_sense):
+            for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
                 for s_idx in range(len(ps)):
                     if ts[s_idx]==ps[s_idx]:
-                        correct +=1
+                        correct_s +=1
+                    if tf[s_idx]==pf[s_idx]:
+                        correct_f +=1
+                    if ti[s_idx]==pi[s_idx]:
+                        correct_i +=1
                 n_of_t += ts.shape[0]
 
-    print("Accurancy: ", correct/n_of_t)
+    print("Sense Accurancy: ", correct_s/n_of_t)
+    print("Sense Accurancy: ", correct_f/n_of_t)
+    print("Sense Accurancy: ", correct_i/n_of_t)
 
 
 
