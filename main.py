@@ -201,8 +201,8 @@ if __name__ == '__main__':
                 n_of_t += ts.shape[0]
 
     print("Sense Accurancy: ", correct_s/n_of_t)
-    print("Sense Accurancy: ", correct_f/n_of_t)
-    print("Sense Accurancy: ", correct_i/n_of_t)
+    print("Fragment Accurancy: ", correct_f/n_of_t)
+    print("intergration label Accurancy: ", correct_i/n_of_t)
 
 
 
