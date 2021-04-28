@@ -37,6 +37,9 @@ def my_collate(batch):
     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
 
     char_sent = [torch.LongTensor(item[4]).to(device) for item in batch]
+    char_sent_len = [s.shape[0] for s in char_sent]
+    padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
+
     max_sense_len_batch = max([item[10] for item in batch])
     target_s = []
     for item in batch:
@@ -52,16 +55,16 @@ def my_collate(batch):
 
     break_token_idx = [torch.LongTensor(item[9]).to(device) for item in batch]
 
-    return bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx
+    return bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx
 
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 12
+    hyper_batch_size = 6
 
     learning_rate = 0.0015
 
-    epochs = 1
+    epochs = 10
 
     bert_embed_size = 768
 
@@ -75,7 +78,7 @@ if __name__ == '__main__':
 
     eps=1e-7
 
-    fine_tune  = False
+    fine_tune  = True
     
     words, chars, fragments, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
@@ -125,7 +128,7 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(train_loader):
+        for idx, (bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -145,7 +148,6 @@ if __name__ == '__main__':
             chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
             
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
-            padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
             padded_chars_context = pad_sequence(chars_contexts, batch_first=True, padding_value=0.0)
 
@@ -173,7 +175,7 @@ if __name__ == '__main__':
 
                 batch_loss = batch_loss + frg_loss + inter_loss
             
-            enc_out, enc_hidden = model_encoder(padded_char_input)
+            enc_out, enc_hidden = model_encoder(padded_char_input, char_sent_len)
 
             expanded_enc_out = torch.cat((enc_out, padded_chars_context), 2)
 
@@ -232,7 +234,7 @@ if __name__ == '__main__':
 
         test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
-        for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(test_loader):
+        for idx, (bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(test_loader):
 
 
 
@@ -250,7 +252,6 @@ if __name__ == '__main__':
             chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
-            padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
             padded_chars_context = pad_sequence(chars_contexts, batch_first=True, padding_value=0.0)
 
@@ -267,7 +268,7 @@ if __name__ == '__main__':
 
             max_sense_len = padded_sense.shape[2]
 
-            enc_out, enc_hidden = model_encoder(padded_char_input)
+            enc_out, enc_hidden = model_encoder(padded_char_input, char_sent_len)
 
             expanded_enc_out = torch.cat((enc_out, padded_chars_context), 2)
 

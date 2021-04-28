@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 class Linear_classifiers(nn.Module):
     def __init__(self , embed_size, frgs_size, intergs_size, dropout_rate):
@@ -29,10 +30,12 @@ class Encoder(nn.Module):
         self.embedding = torch.nn.Embedding(num_embeddings = self.vocab_size, embedding_dim = embed_size, padding_idx=vocab['[PAD]'])
         self.lstm = nn.LSTM(input_size = embed_size, hidden_size = hidden_size, bidirectional=True, batch_first=True)
 
-    def forward(self, inputs):
+    def forward(self, inputs, char_sent_len):
         
         embed = self.embedding(inputs)
-        output, hidden = self.lstm(embed) 
+        embed_packed = pack_padded_sequence(embed, char_sent_len, batch_first=True, enforce_sorted=False)
+        output_packed, hidden = self.lstm(embed_packed) 
+        output, _ = pad_packed_sequence(output_packed, batch_first=True)
 
         return output, hidden
 
