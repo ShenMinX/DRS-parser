@@ -84,9 +84,9 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
 
         sent.append("-EOS-")
         target.append(("-EOS-","-EOS-", "-EOS-"))
-
-        sents.append(sent)
-        targets.append(target)
+        if len(sent) <=38:
+            sents.append(sent)
+            targets.append(target)
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 

@@ -38,7 +38,7 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 32
+    hyper_batch_size = 24
 
     learning_rate = 0.0015
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     shuffle_dataset = True
     random_seed = 33
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\mergedata\\silver\\silver.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -73,6 +73,7 @@ if __name__ == '__main__':
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    bert_model.config.output_hidden_states=True
 
     train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler, shuffle=False, collate_fn=my_collate)
 
@@ -103,7 +104,7 @@ if __name__ == '__main__':
             else:
                 bert_outputs = bert_model(**bert_input)
                 
-            embeddings = bert_outputs.last_hidden_state
+            embeddings = bert_outputs.hidden_states[7]
 
             valid_embeds = [
                 embeds[torch.nonzero(valid).squeeze(1)]
@@ -161,7 +162,7 @@ if __name__ == '__main__':
         for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.last_hidden_state
+            embeddings = bert_outputs.hidden_states[7]
 
             valid_embeds = [
                 embeds[torch.nonzero(valid).squeeze(1)]
