@@ -148,12 +148,16 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(tagging_model.parameters(),lr=learning_rate)
 
+    #for masking non_content
+    with torch.no_grad():
+        content_set = torch.LongTensor(list(dataset.content_frg_idx)).to(device)
+
     if fine_tune == True:
         bert_optimizer = AdamW(bert_model.parameters(), lr=1e-5)
 
     for e in range(epochs):
         total_loss = 0.0
-
+        
         for idx, (bert_input, valid_indices, padded_char_input, target_s, \
              target_f, target_i, words_lens) in enumerate(train_loader):
 
@@ -194,6 +198,18 @@ if __name__ == '__main__':
 
             frg_out, inter_out = tagging_model(padded_input)
 
+         ###masking non-content###
+
+            frg_pred = torch.argmax(frg_out, 2)
+
+            #tile_multiples = torch.cat((torch.ones(len(frg_pred.shape), dtype=torch.long).to(device),torch.LongTensor([content_set.shape[0]]).to(device)), 0)
+
+            tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
+
+            mask = torch.eq(tile, content_set).any(2)
+
+        ###masking non-content###
+
             batch_loss = 0.0
 
             max_tl = padded_sense.shape[1]
@@ -230,7 +246,7 @@ if __name__ == '__main__':
                     else:
                         dec_input = dec_pred.view(batch_size, 1)
 
-                    p_step_loss = criterion(torch.log(output + eps), padded_sense[:,i, j])
+                    p_step_loss = criterion(torch.log(output[mask[:, i]] + eps), padded_sense[:,i, j][mask[:, i]])
 
                     batch_loss = batch_loss + p_step_loss
 

@@ -55,7 +55,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     clauses = dictionary()
     integration_labels = dictionary()
 
-    content_frg_idx = set()
+    content_frg_idx = set([clauses.token_to_ix["-EOS-"]])
 
     chars.insert("-EOSEN-")
 
