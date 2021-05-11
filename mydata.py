@@ -53,13 +53,15 @@ def valid_tokenizing(sent, tokenizer, device):
 class Dataset(data.Dataset):
 
     def __init__(self, sents, char_sents, targets, target_senses, max_sense_lens, word_to_ix, \
-        char_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device): 
+        char_to_ix, fragment_to_ix, itergration_to_ix, content_frg_idx, tokenizer, device): 
         'Initialization'
         self.sents = sents
         self.char_sents = char_sents
         self.targets = targets
         self.target_senses = target_senses
         self.max_sense_lens = max_sense_lens
+
+        self.content_frg_idx = content_frg_idx
 
         self.char_to_ix = char_to_ix
         self.fragment_to_ix = fragment_to_ix
@@ -78,26 +80,20 @@ class Dataset(data.Dataset):
 
         words_len = preprocess.get_words_len(sent)
 
-        break_token_idx = []
-        stack = 0
-        for ix in words_len[1:-1]:
-            stack += ix
-            break_token_idx.append(stack)
-        
+        char_sent = [preprocess.tokens_to_ixs(self.char_to_ix, char_words) for char_words in self.char_sents[index]]
         target_s = [preprocess.tokens_to_ixs(self.char_to_ix, sense) for sense in self.target_senses[index]]
 
-        char_sent, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
-            self.char_to_ix, self.char_sents[index]),(
+        target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
                 self.fragment_to_ix, [t[0] for t in target]), (
                     self.itergration_to_ix, [t[1] for t in target])]))
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, break_token_idx, self.max_sense_lens[index])
+        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, self.max_sense_lens[index])
 
     
 def my_collate(batch):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
+    
     input_ids = [item[0] for item in batch]
     token_type_ids = [item[1] for item in batch]
     attention_mask = [item[2] for item in batch]
@@ -110,39 +106,45 @@ def my_collate(batch):
 
     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
 
-    char_sent = [torch.LongTensor(item[4]).to(device) for item in batch]
+    words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
 
-    max_sense_len_batch = max([item[10] for item in batch])
+    max_word_len_batch = max([max(item[8]) for item in batch])
+    max_sense_len_batch = max([item[9] for item in batch])
+
+    char_sent = []
     target_s = []
     for item in batch:
+        char_seq = []
         sense_seq = []
-        for sense in item[5]:
-            sense_seq.append(padding(sense, max_sense_len_batch))
+        for word, sense in zip(item[4],item[5]):
+            char_seq.append(mydata.padding(word, max_word_len_batch))
+            sense_seq.append(mydata.padding(sense, max_sense_len_batch))
+        char_sent.append(torch.LongTensor(char_seq).to(device))
         target_s.append(torch.LongTensor(sense_seq).to(device))
+    
+    char_sent_len = [s.shape[0] for s in char_sent]
+    padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
-    words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
+    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens
 
-    break_token_idx = [torch.LongTensor(item[9]).to(device) for item in batch]
-
-    return bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx
 
 if __name__ == "__main__":
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
 
-    words, sent_char, fragment, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2()
+    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2()
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt")
 
-    my_data = Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, sent_char.token_to_ix,\
-         fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    my_data = Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
+         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, tokenizer, device)
     
     loader = data.DataLoader(dataset=my_data, batch_size=32, shuffle=False, collate_fn=my_collate)
     
-    for idx, (bert_input, valid_indices, char_sent, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(loader):
-        print(target_s)
+    for idx, (bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens) in enumerate(loader):
+        print(words_lens)
 
         print("-------------------------")
 

@@ -5,6 +5,7 @@ import torch.utils.data as data
 
 import re
 import random
+import numpy as np
 
 from tokenizers import BertWordPieceTokenizer
 from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
@@ -18,12 +19,17 @@ from rouge import rouge_l_summary_level
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-def get_char_context(valid_embeds, words_lens, break_token_idx):
-    return [ve.repeat_interleave(wl, dim = 0).index_fill_(0, br, 0) for ve, wl, br in zip(valid_embeds, words_lens, break_token_idx)]
+def repeat_and_pad(embed, word_len, max_length):
+    return torch.cat((embed.unsqueeze(0).repeat_interleave(word_len, dim = 0),\
+         torch.zeros(max_length-word_len, embed.shape[0]).to(device)), 0)
+    
+
+def get_char_context(valid_embeds, words_lens, max_length):
+    return [torch.stack([repeat_and_pad(v, l, max_length) for v, l in zip(ve[1:], wl)]) for ve, wl in zip(valid_embeds, words_lens)]
 
 
 def my_collate(batch):
-
+    
     input_ids = [item[0] for item in batch]
     token_type_ids = [item[1] for item in batch]
     attention_mask = [item[2] for item in batch]
@@ -36,26 +42,29 @@ def my_collate(batch):
 
     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
 
-    char_sent = [torch.LongTensor(item[4]).to(device) for item in batch]
-    char_sent_len = [s.shape[0] for s in char_sent]
-    padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
+    words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
 
-    max_sense_len_batch = max([item[10] for item in batch])
+    max_word_len_batch = max([max(item[8]) for item in batch])
+    max_sense_len_batch = max([item[9] for item in batch])
+
+    char_sent = []
     target_s = []
     for item in batch:
+        char_seq = []
         sense_seq = []
-        for sense in item[5]:
+        for word, sense in zip(item[4],item[5]):
+            char_seq.append(mydata.padding(word, max_word_len_batch))
             sense_seq.append(mydata.padding(sense, max_sense_len_batch))
+        char_sent.append(torch.LongTensor(char_seq).to(device))
         target_s.append(torch.LongTensor(sense_seq).to(device))
+    
+    padded_char_input = pad_sequence(char_sent, batch_first=True, padding_value=0.0)
 
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
-    words_lens = [torch.LongTensor(item[8]).to(device) for item in batch]
+    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens
 
-    break_token_idx = [torch.LongTensor(item[9]).to(device) for item in batch]
-
-    return bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx
 
 if __name__ == '__main__':
 
@@ -64,7 +73,7 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 10
+    epochs = 1
 
     bert_embed_size = 768
 
@@ -79,19 +88,36 @@ if __name__ == '__main__':
     eps=1e-7
 
     fine_tune  = True
+   
+    validation_split = 0.2
+    shuffle_dataset = True
+    random_seed = 33
     
-    words, chars, fragments, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
+    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\toy\\test.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_set = mydata.Dataset(sents, char_sents, targets, target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
-         fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    dataset = mydata.Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
+         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, tokenizer, device)
+
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(validation_split * dataset_size))
+
+    if shuffle_dataset:
+        np.random.seed(random_seed)
+        np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
+
+    train_sampler = data.sampler.SubsetRandomSampler(train_indices)
+    valid_sampler = data.sampler.SubsetRandomSampler(val_indices)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
 
-    train_loader = data.DataLoader(dataset=train_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler,shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -128,7 +154,8 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, (bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(train_loader):
+        for idx, (bert_input, valid_indices, padded_char_input, target_s, \
+             target_f, target_i, words_lens) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -145,7 +172,9 @@ if __name__ == '__main__':
                 
             batch_size = len(valid_embeds)
 
-            chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
+            max_word_len = padded_char_input.shape[2]
+
+            chars_contexts = get_char_context(valid_embeds, words_lens, max_word_len)
             
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
 
@@ -153,18 +182,20 @@ if __name__ == '__main__':
 
             assert padded_chars_context.shape[0] == padded_char_input.shape[0]
             assert padded_chars_context.shape[1] == padded_char_input.shape[1]
+            assert padded_chars_context.shape[2] == padded_char_input.shape[2]
             
 
             padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
             padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
             padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
+            assert padded_sense.shape[1] == padded_chars_context.shape[1]
             #print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
 
             frg_out, inter_out = tagging_model(padded_input)
 
             batch_loss = 0.0
-            max_length = padded_input.shape[1]
+
             max_tl = padded_sense.shape[1]
 
             max_sense_len = padded_sense.shape[2]
@@ -174,19 +205,23 @@ if __name__ == '__main__':
                 inter_loss = lossfunc(inter_out[:,i,:], padded_inter[:,i])
 
                 batch_loss = batch_loss + frg_loss + inter_loss
-            
-            enc_out, enc_hidden = model_encoder(padded_char_input, char_sent_len)
-
-            expanded_enc_out = torch.cat((enc_out, padded_chars_context), 2)
-
-            dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
 
             with torch.no_grad():
                 rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
             
             for i in range(max_tl):
+            
+                enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
+
+                expanded_enc_out = torch.cat((enc_out, padded_chars_context[:,i, :, :].squeeze()), 2)
+
+                dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
+                
+                with torch.no_grad():
+                    rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
+
                 for j in range(max_sense_len):
-                    output, rnn_hid = model_decoder(expanded_enc_out, rnn_hid, dec_input, padded_char_input) # batch x vocab_size
+                    output, rnn_hid = model_decoder(expanded_enc_out, rnn_hid, dec_input, padded_char_input[:,i,:]) # batch x vocab_size
                 
                     _, dec_pred = torch.max(output, 1) # batch_size vector
 
@@ -222,21 +257,15 @@ if __name__ == '__main__':
 
     #eval:
 
-    _, _, _, _, te_sents, te_char_sents, te_targets, te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
-
-    test_set = mydata.Dataset(te_sents, te_char_sents, te_targets, te_target_senses,te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
-         fragments.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
-
     with torch.no_grad():
         
         n_of_t = 0
         correct = 0
 
-        test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
+        test_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
 
-        for idx, (bert_input, valid_indices, padded_char_input, char_sent_len, target_s, target_f, target_i, words_lens, break_token_idx) in enumerate(test_loader):
-
-
+        for idx, (bert_input, valid_indices, padded_char_input, target_s, \
+             target_f, target_i, words_lens) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.last_hidden_state
@@ -247,9 +276,11 @@ if __name__ == '__main__':
 
             batch_size = len(valid_embeds)
 
+            max_word_len = padded_char_input.shape[2]
+
             seq_len = [s.shape[0] for s in target_s]
 
-            chars_contexts = get_char_context(valid_embeds, words_lens, break_token_idx)
+            chars_contexts = get_char_context(valid_embeds, words_lens, max_word_len)
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
 
@@ -264,23 +295,26 @@ if __name__ == '__main__':
             frg_max = torch.argmax(frg_out, 2)
             inter_max = torch.argmax(inter_out, 2)
 
-            max_tl = padded_sense.shape[1]     # max target length
+            max_tl = padded_sense.shape[1]
 
             max_sense_len = padded_sense.shape[2]
-
-            enc_out, enc_hidden = model_encoder(padded_char_input, char_sent_len)
-
-            expanded_enc_out = torch.cat((enc_out, padded_chars_context), 2)
-
-            dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
-
-            rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
              
             for i in range(max_tl):
+
+                enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
+
+                expanded_enc_out = torch.cat((enc_out, padded_chars_context[:,i, :, :].squeeze()), 2)
+
+                dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
+                
+                rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
+
+                with torch.no_grad():
+                    rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
                 #pred = torch.tensor([],dtype=torch.long).to(device)
                 for j in range(max_sense_len):
     
-                    output, rnn_hid = model_decoder(expanded_enc_out, rnn_hid, dec_input, padded_char_input) # batch x vocab_size
+                    output, rnn_hid = model_decoder(expanded_enc_out, rnn_hid, dec_input, padded_char_input[:,i,:]) # batch x vocab_size
                 
                     _, dec_pred = torch.max(output, 1) # batch_size vector
 

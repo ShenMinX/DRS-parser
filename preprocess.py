@@ -47,7 +47,7 @@ def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
 def get_words_len(sent):
-    return [1]+[len(w)+1 for w in sent[1:-1]]+[1]
+    return [len(w)+2 for w in sent[1:-1]]+[1]
 
 def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
     words = dictionary()
@@ -55,9 +55,9 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     clauses = dictionary()
     integration_labels = dictionary()
 
-    chars.insert("[break]")
-    chars.insert("[none]")
+    content_frg_idx = set()
 
+    chars.insert("-EOSEN-")
 
     SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
 
@@ -80,8 +80,9 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
         fragments = address.debruijnify(fragments)
 
         sent = ["-BOS-"]
-        char_sent = ["-BOS-"]
+        char_sent = []
         target = [("-BOS-", "-BOS-")]
+        
         
         sense_seqence = []
         max_sense_len = 0
@@ -94,10 +95,16 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
                 integration_label = {}
 
             words.insert(word)
+            clauses.insert(tuple(fragment))
+            integration_labels.insert(dictlist_to_tuple(integration_label))
+
+            word_seq = ["-BOS-"]
+
             for ch in word:
                 chars.insert(ch)
-                char_sent.append(ch)
-            char_sent.append("[break]")
+                word_seq.append(ch)
+            word_seq.append("-EOS-")
+            char_sent.append(word_seq)
 
             sense_seq = []
 
@@ -110,31 +117,31 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
                 sense_seq.append("["+match.group('pos')+"]")
                 chars.insert("["+match.group('number')+"]")
                 sense_seq.append("["+match.group('number')+"]")
+                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                sense_seq.append("-EOS-")
             
             elif "\"tom\"" in syms:
                 for ch in syms["\"tom\""]:
                     if ch !="\"":
                         chars.insert(ch)
                         sense_seq.append(ch)
+                sense_seq.append("-EOS-")
+                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
 
             else:
                 sense_seq.append("[PAD]")
 
-        
-            clauses.insert(tuple(fragment))
-            integration_labels.insert(dictlist_to_tuple(integration_label))
-            
+                   
             sent.append(word)
             target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
-
+            
             sense_seqence.append(sense_seq)
 
             
             max_sense_len = max(len(sense_seq), max_sense_len)
 
-        sense_seqence.append(["-EOS-"])
-
-        char_sent.append("-EOS-")
+        char_sent.append(["-EOSEN-"])
+        sense_seqence.append(["-EOSEN-"])
 
         sent.append("-EOS-")
         target.append(("-EOS-", "-EOS-"))
@@ -148,7 +155,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 
 
-    return words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens
+    return words, chars, clauses, integration_labels, content_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):

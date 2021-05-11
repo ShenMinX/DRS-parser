@@ -30,12 +30,11 @@ class Encoder(nn.Module):
         self.embedding = torch.nn.Embedding(num_embeddings = self.vocab_size, embedding_dim = embed_size, padding_idx=vocab['[PAD]'])
         self.lstm = nn.LSTM(input_size = embed_size, hidden_size = hidden_size, bidirectional=True, batch_first=True)
 
-    def forward(self, inputs, char_sent_len):
+    def forward(self, inputs):
         
         embed = self.embedding(inputs)
-        embed_packed = pack_padded_sequence(embed, char_sent_len, batch_first=True, enforce_sorted=False)
-        output_packed, hidden = self.lstm(embed_packed) 
-        output, _ = pad_packed_sequence(output_packed, batch_first=True)
+        
+        output, hidden = self.lstm(embed) 
 
         return output, hidden
 
