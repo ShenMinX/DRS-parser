@@ -223,8 +223,12 @@ if __name__ == '__main__':
 
             tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
 
-            mask = torch.eq(tile, content_set).any(2)
+            mask = torch.eq(tile, content_set).any(2)[:, 1:] # remove BOS column
 
+
+            assert padded_sense.shape[0] == mask.shape[0]
+            assert padded_sense.shape[1] == mask.shape[1]
+            assert mask.sum()!=0
 
 
         ###masking non-content###
