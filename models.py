@@ -21,18 +21,20 @@ class Linear_classifiers(nn.Module):
         return output_frgs, output_intergs
 
 class Encoder(nn.Module):
-    def __init__(self, vocab, hidden_size = 30, embed_size = 20):
+    def __init__(self, vocab, hidden_size = 30, embed_size = 20, dropout_rate = 0.2):
         super(Encoder, self).__init__()
     
         self.vocab_size = len(vocab)
         self.hidden_size = hidden_size
         self.embed_size = embed_size
         self.embedding = torch.nn.Embedding(num_embeddings = self.vocab_size, embedding_dim = embed_size, padding_idx=vocab['[PAD]'])
+        self.dropout = nn.Dropout(dropout_rate)
         self.lstm = nn.LSTM(input_size = embed_size, hidden_size = hidden_size, bidirectional=True, batch_first=True)
 
     def forward(self, inputs):
         
         embed = self.embedding(inputs)
+        embed = self.dropout(embed)
         
         output, hidden = self.lstm(embed) 
 
@@ -70,7 +72,7 @@ class Attention(nn.Module):
         return attn
 
 class Decoder(nn.Module):
-    def __init__(self, vocab, encode_size = 60, hidden_size = 30, embed_size = 20, device = torch.device('cpu')):
+    def __init__(self, vocab, encode_size = 60, hidden_size = 30, embed_size = 20, dropout_rate = 0.2, device = torch.device('cpu')):
         super(Decoder, self).__init__()
         
         self.vocab_size = len(vocab)
@@ -78,6 +80,8 @@ class Decoder(nn.Module):
         self.device = device
 
         self.embedding = torch.nn.Embedding(num_embeddings = self.vocab_size, embedding_dim = embed_size, padding_idx=vocab["[PAD]"])
+
+        self.dropout = nn.Dropout(dropout_rate)
 
         self.lstm = nn.LSTMCell(input_size = embed_size + encode_size, hidden_size = hidden_size)
 
@@ -102,6 +106,8 @@ class Decoder(nn.Module):
         context = torch.bmm(attn_transformed, enc_out) # batch x 1 x encode_size
 
         embed = self.embedding(dec_input) # input: batch x 1 
+
+        embed = self.dropout(embed)
     
         ctxt_embed = torch.cat([context, embed], 2).view(batch_size, -1)
 

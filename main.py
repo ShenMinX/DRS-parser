@@ -27,6 +27,13 @@ def repeat_and_pad(embed, word_len, max_length):
 def get_char_context(valid_embeds, words_lens, max_length):
     return [torch.stack([repeat_and_pad(v, l, max_length) for v, l in zip(ve[1:], wl)]) for ve, wl in zip(valid_embeds, words_lens)]
 
+def maskNLLLoss(inp, target, mask):
+    nTotal = mask.sum()
+    crossEntropy = -torch.log(torch.gather(inp, 1, target.view(-1, 1)).squeeze(1))
+    loss = crossEntropy.masked_select(mask).mean()
+    loss = loss.to(device)
+    return loss, nTotal.item()
+
 
 def my_collate(batch):
     
@@ -69,11 +76,13 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 6
+    hyper_batch_size = 12
 
     learning_rate = 0.0015
 
-    epochs = 1
+    num_warmup_steps = 0
+
+    epochs = 10
 
     bert_embed_size = 768
 
@@ -94,7 +103,7 @@ if __name__ == '__main__':
     random_seed = 33
     
     words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\toy\\test.txt', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -131,16 +140,18 @@ if __name__ == '__main__':
     model_encoder = Encoder(
                   vocab=chars.token_to_ix, 
                   hidden_size=enc_hid_size, 
-                  embed_size=enc_embed_size).to(device)
+                  embed_size=enc_embed_size,
+                  dropout_rate = 0.2).to(device)
 
     model_decoder = Decoder(
                       vocab=chars.token_to_ix, 
                       encode_size=enc_hid_size*2 + 768, 
                       hidden_size=dec_hid_size, 
                       embed_size=dec_embed_size,
+                      dropout_rate = 0.2,
                       device=device
                      ).to(device)
-
+    
     criterion = nn.NLLLoss()
 
     enc_optimizer = torch.optim.Adam(model_encoder.parameters(),lr=learning_rate)
@@ -148,12 +159,18 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(tagging_model.parameters(),lr=learning_rate)
 
+    scheduler1 = get_linear_schedule_with_warmup(enc_optimizer, num_warmup_steps, len(train_loader)*epochs)
+    scheduler2 = get_linear_schedule_with_warmup(dec_optimizer, num_warmup_steps, len(train_loader)*epochs)
+    scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_loader)*epochs)
+
+
     #for masking non_content
     with torch.no_grad():
         content_set = torch.LongTensor(list(dataset.content_frg_idx)).to(device)
 
     if fine_tune == True:
         bert_optimizer = AdamW(bert_model.parameters(), lr=1e-5)
+        scheduler = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_loader)*epochs)
 
     for e in range(epochs):
         total_loss = 0.0
@@ -208,6 +225,8 @@ if __name__ == '__main__':
 
             mask = torch.eq(tile, content_set).any(2)
 
+
+
         ###masking non-content###
 
             batch_loss = 0.0
@@ -246,7 +265,8 @@ if __name__ == '__main__':
                     else:
                         dec_input = dec_pred.view(batch_size, 1)
 
-                    p_step_loss = criterion(torch.log(output[mask[:, i]] + eps), padded_sense[:,i, j][mask[:, i]])
+                    p_step_loss = criterion(torch.log(output + eps), padded_sense[:,i, j])
+                    #p_step_loss, nTotal = maskNLLLoss(output + eps, padded_sense[:,i, j], mask[:, i].view(-1,1))
 
                     batch_loss = batch_loss + p_step_loss
 
@@ -259,8 +279,12 @@ if __name__ == '__main__':
             optimizer.step()
             enc_optimizer.step()
             dec_optimizer.step()
+            scheduler1.step()
+            scheduler2.step()
+            scheduler3.step()
             if fine_tune == True:
                 bert_optimizer.step()
+                scheduler.step()
 
         with torch.no_grad():
             total_loss += float(batch_loss)
