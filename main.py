@@ -76,13 +76,13 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 12
+    hyper_batch_size = 5
 
     learning_rate = 0.0015
 
     num_warmup_steps = 0
 
-    epochs = 10
+    epochs = 15
 
     bert_embed_size = 768
 
@@ -125,6 +125,7 @@ if __name__ == '__main__':
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    bert_model.config.output_hidden_states=True
 
     train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler,shuffle=False, collate_fn=my_collate)
 
@@ -185,7 +186,7 @@ if __name__ == '__main__':
             else:
                 bert_outputs = bert_model(**bert_input)
             
-            embeddings = bert_outputs.last_hidden_state
+            embeddings = bert_outputs.hidden_states[7]
 
             valid_embeds = [
                 embeds[torch.nonzero(valid).squeeze(1)]
@@ -302,7 +303,9 @@ if __name__ == '__main__':
     #eval:
 
     with torch.no_grad():
-        
+        correct_f = 0
+        correct_i = 0
+        n_of_t2 = 0
         n_of_t = 0
         correct = 0
 
@@ -312,7 +315,7 @@ if __name__ == '__main__':
              target_f, target_i, words_lens) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.last_hidden_state
+            embeddings = bert_outputs.hidden_states[7]
 
             valid_embeds = [
                 embeds[torch.nonzero(valid).squeeze(1)]
@@ -400,8 +403,17 @@ if __name__ == '__main__':
         #         if predic[i]==targ_list[i]:
         #             correct += 1
         #     n_of_t += len(targ_list)
+            for  tf, ti, pf, pi in zip(target_f, target_i, unpad_frg, unpad_inter):
+                for s_idx in range(len(pf)):
+                    if tf[s_idx]==pf[s_idx]:
+                        correct_f +=1
+                    if ti[s_idx]==pi[s_idx]:
+                        correct_i +=1
+                n_of_t2 += ti.shape[0]
         
-        print("Accurancy: ", correct/n_of_t)
+    print("Sense Accurancy: ", correct/n_of_t)
+    print("Fragment Accurancy: ", correct_f/n_of_t2)
+    print("intergration label Accurancy: ", correct_i/n_of_t2)
 
 
         # _, _, rouge_1 = rouge_n_summary_level(final_preds, rouge_target, 1)
