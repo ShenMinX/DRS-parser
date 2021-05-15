@@ -48,34 +48,20 @@ if __name__ == '__main__':
 
     fine_tune  = True
 
-    validation_split = 0.2
-    shuffle_dataset = True
-    random_seed = 33
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold_silver\\train.clf', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\train.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    dataset = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    train_dataset = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
-    dataset_size = len(dataset)
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
-
-    if shuffle_dataset:
-        np.random.seed(random_seed)
-        np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
-
-    train_sampler = data.sampler.SubsetRandomSampler(train_indices)
-    valid_sampler = data.sampler.SubsetRandomSampler(val_indices)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
     bert_model.config.output_hidden_states=True
 
-    train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler, shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -156,8 +142,12 @@ if __name__ == '__main__':
         correct_f = 0
         correct_i = 0
         n_of_t = 0
+        
+        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
-        test_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
+        test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+
+        test_loader = data.DataLoader(dataset=test_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
 
