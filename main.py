@@ -52,7 +52,7 @@ if __name__ == '__main__':
     shuffle_dataset = True
     random_seed = 33
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\mergedata\\silver\\silver.clf', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold_silver\\train.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
