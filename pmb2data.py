@@ -54,6 +54,7 @@ def merge_splite(origin:list, dst:str, ratio:float, max_sen_len:int):
                 content1 = infile1.readlines()
                 if len(content1[2].split(" ")) <= max_sen_len:
                     outfile1.write("\n".join(content1))
+                    outfile1.write("\n")
             t.update()
 
     with open(dst+"Test.clf", 'w', encoding="utf-8") as outfile2:
@@ -62,6 +63,7 @@ def merge_splite(origin:list, dst:str, ratio:float, max_sen_len:int):
                 content2 = infile2.readlines()
                 if len(content2[2].split(" ")) <= max_sen_len:
                     outfile2.write("\n".join(content2))
+                    outfile2.write("\n")
             t.update()
 
     t.refresh()
