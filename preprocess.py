@@ -139,13 +139,13 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 
 if __name__ == '__main__':
-    #encode()
-    a, b, c, d,e,fo=encode2()
-    for s,t in zip(e,fo):
-        sent, target_s, target_f, traget_i = list(map(lambda x: tokens_to_ixs(x[0], x[1]),[(
-            a.token_to_ix, s), (
-                b.token_to_ix, [w[0] for w in t]), (
-                    c.token_to_ix, [w[1] for w in t]), (
-                        d.token_to_ix, [w[2] for w in t])]))
+    encode()
+    # a, b, c, d,e,fo=encode2()
+    # for s,t in zip(e,fo):
+    #     sent, target_s, target_f, traget_i = list(map(lambda x: tokens_to_ixs(x[0], x[1]),[(
+    #         a.token_to_ix, s), (
+    #             b.token_to_ix, [w[0] for w in t]), (
+    #                 c.token_to_ix, [w[1] for w in t]), (
+    #                     d.token_to_ix, [w[2] for w in t])]))
 
-        print(len(s),traget_i)
+    #     print(len(s),traget_i)

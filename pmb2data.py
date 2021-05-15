@@ -34,7 +34,7 @@ def merge_data(origin:list, dst:str):
         t.refresh()
         t.close()
 
-def merge_splite(origin:list, dst:str, ratio:float, max_sen_len:int):
+def merge_splite(origin:list, dst1:str, dst2:str, ratio:float, max_sen_len:int):
     
     file_list = []
     for f in origin:
@@ -48,22 +48,20 @@ def merge_splite(origin:list, dst:str, ratio:float, max_sen_len:int):
     num = round(len(file_list) * ratio)
     train, test = file_list[:num], file_list[num:]
     
-    with open(dst+"Train.clf", 'w', encoding="utf-8") as outfile1:
+    with open(dst1, 'w', encoding="utf-8") as outfile1:
         for trf in train:
             with open(trf, encoding="utf-8") as infile1:
                 content1 = infile1.readlines()
                 if len(content1[2].split(" ")) <= max_sen_len:
-                    outfile1.write("\n".join(content1))
-                    outfile1.write("\n")
+                    outfile1.write("".join(content1+["\n"]))
             t.update()
 
-    with open(dst+"Test.clf", 'w', encoding="utf-8") as outfile2:
+    with open(dst2, 'w', encoding="utf-8") as outfile2:
         for tef in test:
             with open(tef, encoding="utf-8") as infile2:
                 content2 = infile2.readlines()
                 if len(content2[2].split(" ")) <= max_sen_len:
-                    outfile2.write("\n".join(content2))
-                    outfile2.write("\n")
+                    outfile2.write("".join(content2+["\n"]))
             t.update()
 
     t.refresh()
@@ -84,11 +82,11 @@ merges = "A:\\NNL\\DRS\\mergedata\\silver\\silver.clf"
 mergeb = "A:\\NNL\\DRS\\mergedata\\bronze\\bronze.clf"
 mergegs = "A:\\NNL\\DRS\\mergedata\\gold_silver.clf"
 
-ms_gold = "A:\\NNL\\DRS\\ms_data\\gold\\"
-ms_sliver = "A:\\NNL\\DRS\\ms_data\\silver\\silver\\"
-ms_bronze = "A:\\NNL\\DRS\\ms_data\\bronze\\bronze\\"
-ms_gold_silver = "A:\\NNL\\DRS\\ms_data\\gold_silver\\"
+ms_gold = "A:\\NNL\\DRS-parser\\Data\\ms_data\\gold\\"
+ms_sliver = "A:\\NNL\\DRS-parser\\Data\\ms_data\\silver\\"
+ms_bronze = "A:\\NNL\\DRS-parser\\Data\\ms_data\\bronze\\"
+ms_gold_silver = "A:\\NNL\\DRS-parser\\Data\\ms_data\\gold_silver\\"
 
 #copy_data([gold, silver], copygs)
 #merge_data([gold, silver], mergegs)
-merge_splite([gold], ms_gold, 0.8, 37)
+merge_splite([gold, silver], ms_gold_silver+"train.clf", ms_gold_silver+"test.clf", 0.8, 37)
