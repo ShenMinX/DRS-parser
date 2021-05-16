@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 10
+    epochs = 1
 
     bert_embed_size = 768
 
@@ -96,14 +96,14 @@ if __name__ == '__main__':
 
     eps=1e-7
 
-    fine_tune  = True
+    fine_tune  = False
    
     validation_split = 0.2
     shuffle_dataset = True
     random_seed = 33
     
     words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\toy\\gold\\gold.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -247,7 +247,7 @@ if __name__ == '__main__':
 
             with torch.no_grad():
                 rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
-            
+            batch_pred =[]
             for i in range(max_tl):
             
                 enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
@@ -269,7 +269,7 @@ if __name__ == '__main__':
                     else:
                         dec_input = dec_pred.view(batch_size, 1)
 
-                    p_step_loss = criterion(torch.log(output + eps), padded_sense[:,i, j])
+                    p_step_loss = criterion(torch.log(output*mask[:, i].view(-1,1) + eps), padded_sense[:,i, j]*mask[:, i])
                     #p_step_loss, nTotal = maskNLLLoss(output + eps, padded_sense[:,i, j], mask[:, i].view(-1,1))
 
                     batch_loss = batch_loss + p_step_loss
