@@ -76,7 +76,7 @@ def my_collate(batch):
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 5
+    hyper_batch_size = 16
 
     learning_rate = 0.0015
 
@@ -96,14 +96,14 @@ if __name__ == '__main__':
 
     eps=1e-7
 
-    fine_tune  = False
+    fine_tune  = True
    
     validation_split = 0.2
     shuffle_dataset = True
     random_seed = 33
     
     words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\toy\\gold\\gold.clf', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
