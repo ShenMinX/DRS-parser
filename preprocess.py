@@ -64,8 +64,10 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
         fragments = tuple(drs.sorted(f) for f in fragments)
         fragments = address.debruijnify(fragments)
 
-        sent = ["-BOS-"]
-        target = [("-BOS-","-BOS-", "-BOS-")]
+        #sent = ["-BOS-"]
+        #target = [("-BOS-","-BOS-", "-BOS-")]
+        sent = []
+        target = []
 
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
@@ -82,8 +84,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encodin
             sent.append(word)
             target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
 
-        sent.append("-EOS-")
-        target.append(("-EOS-","-EOS-", "-EOS-"))
+        #sent.append("-EOS-")
+        #target.append(("-EOS-","-EOS-", "-EOS-"))
         #if len(sent) <=38:
         sents.append(sent)
         targets.append(target)

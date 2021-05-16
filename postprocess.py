@@ -33,6 +33,15 @@ def tuple_to_dictlist(tup):
     else:
         return {}
 
+def tuple_to_iterlabels(tup):
+    if len(tup)>1:
+        try:
+            return dict((x, list(y)) for x, y in tup)
+        except ValueError:
+            return  {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}
+    else:
+        return  {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}
+
 
 def tuple_to_list(tup):
     return [list(x) for x in tup]
@@ -133,4 +142,4 @@ if __name__ == '__main__':
     words, senses, clauses, integration_labels, sents, targets = preprocess.encode2()
     pred_file = open('Data\\toy\\prediction.clf', 'w', encoding="utf-8")
     for i, (sen, tar) in enumerate(zip(sents, targets)):
-        decode(sen[1: -1], [tuple_to_dictlist(t[0]) for t in tar[1:-1]], [tuple_to_list(t[1]) for t in tar[1:-1]], [tuple_to_dictlist(t[2]) for t in tar[1:-1]], i+1, pred_file)
+        decode(sen, [tuple_to_dictlist(t[0]) for t in tar], [tuple_to_list(t[1]) for t in tar], [tuple_to_iterlabels(t[2]) for t in tar], i+1, pred_file)

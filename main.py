@@ -11,7 +11,7 @@ from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
 
 import mydata
 import preprocess
-from postprocess import decode, tuple_to_dictlist, tuple_to_list
+from postprocess import decode, tuple_to_dictlist, tuple_to_list, tuple_to_iterlabels
 from models import Linear_classifiers
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -44,14 +44,14 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 1
+    epochs = 15
 
     bert_embed_size = 768
 
-    fine_tune  = False
+    fine_tune  = True
 
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold_silver\\train.clf', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -94,6 +94,8 @@ if __name__ == '__main__':
                 
             embeddings = bert_outputs.hidden_states[7]
 
+            mask = pad_sequence([torch.ones(len(s), dtype=torch.long).to(device) for s in sent], batch_first=True, padding_value=0)
+
             valid_embeds = [
                 embeds[torch.nonzero(valid).squeeze(1)]
                 for embeds, valid in zip(embeddings, valid_indices)]
@@ -110,12 +112,11 @@ if __name__ == '__main__':
             sense_out, frg_out, inter_out = tagging_model(padded_input)
 
             batch_loss = 0.0
-            max_length = padded_input.shape[1]
 
             for i in range(padded_input.shape[1]): 
-                sense_loss = lossfunc(sense_out[:,i,:], padded_sense[:,i])
-                frg_loss = lossfunc(frg_out[:,i,:], padded_frg[:,i])
-                inter_loss = lossfunc(inter_out[:,i,:], padded_inter[:,i])
+                sense_loss = lossfunc(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
+                frg_loss = lossfunc(frg_out[:,i,:]*mask[:, i].view(-1, 1), padded_frg[:,i]*mask[:, i])
+                inter_loss = lossfunc(inter_out[:,i,:]*mask[:, i].view(-1, 1), padded_inter[:,i]*mask[:, i])
 
                 batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
 
@@ -130,7 +131,7 @@ if __name__ == '__main__':
         with torch.no_grad():
             total_loss += float(batch_loss)
 
-        print(e, ". total loss:", total_loss)
+        print(e+1, ". total loss:", total_loss)
 
         e+=1
 
@@ -145,8 +146,8 @@ if __name__ == '__main__':
         # correct_i = 0
         # n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
-        pred_file = open('Data\\toy\\prediction.txt', 'w', encoding="utf-8")
+        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold_silver\\test.clf', encoding = 'utf-8'))
+        pred_file = open('Data\\ms_data\\gold_silver\\prediction.clf', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
@@ -199,8 +200,8 @@ if __name__ == '__main__':
     # print("intergration label Accurancy: ", correct_i/n_of_t)
 
             for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
-                decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_dictlist(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
-
+                #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
+                decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], i+1, pred_file)
     pred_file.close()
 
 
