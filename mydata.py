@@ -70,7 +70,7 @@ class Dataset(data.Dataset):
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, traget_i)
+        return (input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, traget_i, sent)
 
 def my_collate(batch):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
@@ -81,8 +81,9 @@ def my_collate(batch):
     target_s = [torch.LongTensor(item[4]).to(device) for item in batch]
     target_f = [torch.LongTensor(item[5]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[6]).to(device) for item in batch]
+    sent = [item[7] for item in batch]
 
-    return [input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, target_i]
+    return [input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, target_i, sent]
 
 if __name__ == "__main__":
 

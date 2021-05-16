@@ -11,6 +11,7 @@ from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
 
 import mydata
 import preprocess
+from postprocess import decode, tuple_to_dictlist, tuple_to_list
 from models import Linear_classifiers
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -32,8 +33,9 @@ def my_collate(batch):
     target_s = [torch.LongTensor(item[4]).to(device) for item in batch]
     target_f = [torch.LongTensor(item[5]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[6]).to(device) for item in batch]
+    sent = [item[7] for item in batch]
 
-    return bert_input, valid_indices, target_s, target_f, target_i
+    return bert_input, valid_indices, target_s, target_f, target_i, sent
 
 if __name__ == '__main__':
 
@@ -42,14 +44,14 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 15
+    epochs = 1
 
     bert_embed_size = 768
 
-    fine_tune  = True
+    fine_tune  = False
 
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\train.txt', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -81,7 +83,7 @@ if __name__ == '__main__':
     for e in range(epochs):
         total_loss = 0.0
 
-        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(train_loader):
+        for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -138,18 +140,19 @@ if __name__ == '__main__':
 
     with torch.no_grad():
 
-        correct_s = 0
-        correct_f = 0
-        correct_i = 0
-        n_of_t = 0
-        
+        # correct_s = 0
+        # correct_f = 0
+        # correct_i = 0
+        # n_of_t = 0
+        count = 1
         _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\toy\\dev.txt', encoding = 'utf-8'))
+        pred_file = open('Data\\toy\\prediction.txt', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
         test_loader = data.DataLoader(dataset=test_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
-        for idx, (bert_input, valid_indices, target_s, target_f, target_i) in enumerate(test_loader):
+        for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.hidden_states[7]
@@ -160,7 +163,7 @@ if __name__ == '__main__':
 
             batch_size = len(valid_embeds)
 
-            seq_len = [s.shape[0] for s in target_s]
+            seq_len = [len(s) for s in sent]
 
             padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
             padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
@@ -181,19 +184,26 @@ if __name__ == '__main__':
             frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
-            for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
-                for s_idx in range(len(ps)):
-                    if ts[s_idx]==ps[s_idx]:
-                        correct_s +=1
-                    if tf[s_idx]==pf[s_idx]:
-                        correct_f +=1
-                    if ti[s_idx]==pi[s_idx]:
-                        correct_i +=1
-                n_of_t += ts.shape[0]
+    #         for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
+    #             for s_idx in range(len(ps)):
+    #                 if ts[s_idx]==ps[s_idx]:
+    #                     correct_s +=1
+    #                 if tf[s_idx]==pf[s_idx]:
+    #                     correct_f +=1
+    #                 if ti[s_idx]==pi[s_idx]:
+    #                     correct_i +=1
+    #             n_of_t += ts.shape[0]
 
-    print("Sense Accurancy: ", correct_s/n_of_t)
-    print("Fragment Accurancy: ", correct_f/n_of_t)
-    print("intergration label Accurancy: ", correct_i/n_of_t)
+    # print("Sense Accurancy: ", correct_s/n_of_t)
+    # print("Fragment Accurancy: ", correct_f/n_of_t)
+    # print("intergration label Accurancy: ", correct_i/n_of_t)
+
+            for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
+                decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_dictlist(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
+
+    pred_file.close()
+
+
 
 
 

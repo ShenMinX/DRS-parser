@@ -115,3 +115,7 @@ def sorted(fragment):
         fragment,
         key=lambda c: (c[0],) + c[2:] + (c[1],),
     ))
+
+if __name__ == '__main__':
+    chk = Checker(2)
+    print(chk.signature['bbb']['DRS'])

@@ -194,7 +194,7 @@ def get_clauses(file_name, signature, ill_type):
 	'''Function that returns a list of DRSs (that consists of clauses)'''
 	clause_list, original_clauses, cur_orig, cur_clauses = [], [], [], []
 
-	with open(file_name, 'r') as in_f:
+	with open(file_name, 'r', encoding = "utf-8") as in_f:
 		input_lines = in_f.read().split('\n')
 		for idx, line in enumerate(input_lines):
 			if line.strip().startswith('%'):

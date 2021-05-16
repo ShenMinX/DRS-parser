@@ -26,7 +26,10 @@ def parse_label(string):
 
 def tuple_to_dictlist(tup):
     if len(tup)!=0:
-        return dict((x, list(y)) for x, y in tup)
+        try:
+            return dict((x, list(y)) for x, y in tup)
+        except ValueError:
+            return {}
     else:
         return {}
 
@@ -52,7 +55,7 @@ def read_lemmas(blocks):
     return tuple(l.rstrip() for l in blocks[:-1])
 
 
-def decode(sentence, symbols, fragments, integration_actions, i, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=2):
+def decode(sentence, symbols, fragments, integration_actions, i, outfile, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
     checker = drs.Checker(mode)
     if roles:
         roler = srl.Roler((json.loads(l) for l in roles), checker)
@@ -121,12 +124,13 @@ def decode(sentence, symbols, fragments, integration_actions, i, encoding='ret-i
         fix2.check(clauses, i)
     elif mode == 3:
         fix3.check(clauses, i)
-    print(f"%%% {' '.join(sentence)}")
-    clf.write((clauses,), sys.stdout)
+    outfile.write("%%% "+' '.join(sentence)+"\n")
+    clf.write((clauses,), outfile)
 
 
 if __name__ == '__main__':
 
     words, senses, clauses, integration_labels, sents, targets = preprocess.encode2()
+    pred_file = open('Data\\toy\\prediction.clf', 'w', encoding="utf-8")
     for i, (sen, tar) in enumerate(zip(sents, targets)):
-        decode(sen[1: -1], [tuple_to_dictlist(t[0]) for t in tar[1:-1]], [tuple_to_list(t[1]) for t in tar[1:-1]], [tuple_to_dictlist(t[2]) for t in tar[1:-1]], i+1)
+        decode(sen[1: -1], [tuple_to_dictlist(t[0]) for t in tar[1:-1]], [tuple_to_list(t[1]) for t in tar[1:-1]], [tuple_to_dictlist(t[2]) for t in tar[1:-1]], i+1, pred_file)
