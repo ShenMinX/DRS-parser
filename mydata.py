@@ -20,6 +20,7 @@ def _valid_wordpiece_indexes(sent, wp_sent):
     valid_idxs = []
     missing_chars = ""
     idx = 0
+    assert wp_sent[-1]=="[SEP]"
 
     for wp_idx, wp in enumerate(wp_sent,0):
         if not wp in marker:
@@ -34,7 +35,7 @@ def _valid_wordpiece_indexes(sent, wp_sent):
             if missing_chars == "":
                 idx+=1
         
-    return valid_idxs
+    return valid_idxs+[len(wp_sent)-1]
 
 def valid_tokenizing(sent, tokenizer, device):
 

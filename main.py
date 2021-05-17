@@ -42,7 +42,7 @@ def my_collate(batch):
     attention_mask = [item[2] for item in batch]
     valid_indices = [item[3] for item in batch]
                 
-    valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
+    #valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
     token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
     attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
@@ -71,6 +71,13 @@ def my_collate(batch):
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
     return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens
+
+
+def average_word_emb(emb, valid):
+    embs = []
+    for i in range(len(valid)-1):
+        embs.append(emb[torch.LongTensor([idx for idx in range(valid[i], valid[i+1])]).to(device)].mean(0).unsqueeze(0))
+    return torch.cat(embs, 0)
 
 
 if __name__ == '__main__':
@@ -188,8 +195,16 @@ if __name__ == '__main__':
             
             embeddings = bert_outputs.hidden_states[7]
 
+            # valid_embeds = [
+            #     embeds[torch.nonzero(valid).squeeze(1)]
+            #     for embeds, valid in zip(embeddings, valid_indices)]
+
+            # valid_embeds = [
+            #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+            #     for embeds, valid in zip(embeddings, valid_indices)]
+
             valid_embeds = [
-                embeds[torch.nonzero(valid).squeeze(1)]
+                average_word_emb(embeds, valid)
                 for embeds, valid in zip(embeddings, valid_indices)]
                 
             batch_size = len(valid_embeds)
@@ -317,8 +332,17 @@ if __name__ == '__main__':
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.hidden_states[7]
 
+            # valid_embeds = [
+            #     embeds[torch.nonzero(valid).squeeze(1)]
+            #     for embeds, valid in zip(embeddings, valid_indices)]
+
+            
+            # valid_embeds = [
+            #     embeds[valid[:-1]]
+            #     for embeds, valid in zip(embeddings, valid_indices)]
+
             valid_embeds = [
-                embeds[torch.nonzero(valid).squeeze(1)]
+                average_word_emb(embeds, valid)
                 for embeds, valid in zip(embeddings, valid_indices)]
 
             batch_size = len(valid_embeds)

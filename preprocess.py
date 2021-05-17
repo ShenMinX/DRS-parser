@@ -2,7 +2,6 @@ import address
 import alignment
 import clf
 import constants
-import click
 import drs
 import json
 import mask
