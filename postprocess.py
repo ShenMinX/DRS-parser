@@ -25,21 +25,16 @@ def parse_label(string):
 
 
 def tuple_to_dictlist(tup):
-    if len(tup)!=0:
-        try:
-            return dict((x, list(y)) for x, y in tup)
-        except ValueError:
-            return {}
-    else:
+    try:
+        return dict((x, list(y)) for x, y in tup)
+    except ValueError:
         return {}
 
-def tuple_to_iterlabels(tup):
-    if len(tup)>1:
-        try:
-            return dict((x, list(y)) for x, y in tup)
-        except ValueError:
-            return  {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}
-    else:
+
+def tuple_to_iterlabels(tup): 
+    try:
+        return dict((x, list(y)) for x, y in tup)
+    except ValueError:
         return  {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}
 
 
