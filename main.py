@@ -23,7 +23,6 @@ def my_collate(batch):
     attention_mask = [item[2] for item in batch]
     valid_indices = [item[3] for item in batch]
                 
-    valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
     token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
     attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
@@ -36,6 +35,13 @@ def my_collate(batch):
     sent = [item[7] for item in batch]
 
     return bert_input, valid_indices, target_s, target_f, target_i, sent
+
+
+def average_word_emb(emb, valid):
+    embs = []
+    for i in range(len(valid)-1):
+        embs.append(emb[torch.LongTensor([idx for idx in range(valid[i], valid[i+1])]).to(device)].mean(0).unsqueeze(0))
+    return torch.cat(embs, 0)
 
 if __name__ == '__main__':
 
@@ -55,7 +61,7 @@ if __name__ == '__main__':
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_dataset = mydata.Dataset(tr_sents,tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
@@ -97,8 +103,12 @@ if __name__ == '__main__':
             mask = pad_sequence([torch.ones(len(s), dtype=torch.long).to(device) for s in sent], batch_first=True, padding_value=0)
 
             valid_embeds = [
-                embeds[torch.nonzero(valid).squeeze(1)]
+                average_word_emb(embeds, valid)
                 for embeds, valid in zip(embeddings, valid_indices)]
+
+            # valid_embeds = [
+            #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+            #     for embeds, valid in zip(embeddings, valid_indices)]
                 
             batch_size = len(valid_embeds)
 
@@ -158,8 +168,12 @@ if __name__ == '__main__':
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.hidden_states[7]
 
+            # valid_embeds = [
+            #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+            #     for embeds, valid in zip(embeddings, valid_indices)]
+
             valid_embeds = [
-                embeds[torch.nonzero(valid).squeeze(1)]
+                average_word_emb(embeds, valid)
                 for embeds, valid in zip(embeddings, valid_indices)]
 
             batch_size = len(valid_embeds)
@@ -198,6 +212,8 @@ if __name__ == '__main__':
     # print("Sense Accurancy: ", correct_s/n_of_t)
     # print("Fragment Accurancy: ", correct_f/n_of_t)
     # print("intergration label Accurancy: ", correct_i/n_of_t)
+
+    #python counter.py -f1 prediction.clf -f2 test.clf -g clf_signature.yaml
 
             for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
                 #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)

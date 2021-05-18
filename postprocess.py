@@ -28,7 +28,10 @@ def tuple_to_dictlist(tup):
     try:
         return dict((x, list(y)) for x, y in tup)
     except ValueError:
-        return {}
+        if tup =="[UNK]":
+            return "[UNK]"
+        else:
+            return {}
 
 
 def tuple_to_iterlabels(tup): 
@@ -97,6 +100,13 @@ def decode(sentence, symbols, fragments, integration_actions, i, outfile, encodi
             for f, s
             in zip(fragments, symbols)
         )
+        # sensed_fragment = []
+        # for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
+        #     if s == "[UNK]":
+        #         sensed_fragment.append(symbolize(f, w, l))
+        #     else:
+        #         sensed_fragment.append(mask.unmask_fragment(f, s))
+        # fragments = tuple(sensed_fragment)
     else:
         fragments = tuple(
             symbolize(f, w, l) # TODO use lemmas
