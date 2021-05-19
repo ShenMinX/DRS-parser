@@ -62,7 +62,7 @@ def read_lemmas(blocks):
     return tuple(l.rstrip() for l in blocks[:-1])
 
 
-def decode(sentence, symbols, fragments, integration_actions, i, outfile, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
+def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, outfile, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
     checker = drs.Checker(mode)
     if roles:
         roler = srl.Roler((json.loads(l) for l in roles), checker)
@@ -95,18 +95,19 @@ def decode(sentence, symbols, fragments, integration_actions, i, outfile, encodi
     else:
         sentence_lemmas = (None,) * len(sentence)
     if gold_symbols:
-        fragments = tuple(
-            mask.unmask_fragment(f, s)
-            for f, s
-            in zip(fragments, symbols)
-        )
-        # sensed_fragment = []
-        # for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
-        #     if s == "[UNK]":
-        #         sensed_fragment.append(symbolize(f, w, l))
-        #     else:
-        #         sensed_fragment.append(mask.unmask_fragment(f, s))
-        # fragments = tuple(sensed_fragment)
+        # fragments = tuple(
+        #     mask.unmask_fragment(f, s)
+        #     for f, s
+        #     in zip(fragments, symbols)
+        # )
+        sensed_fragment = []
+        for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
+            if (w not in senses_vocab and "\"tom\"" in s) or s=="[UNK]":
+                sensed_fragment.append(symbolize(f, w, l))
+            else:
+                sensed_fragment.append(mask.unmask_fragment(f, s))
+        fragments = tuple(sensed_fragment)
+
     else:
         fragments = tuple(
             symbolize(f, w, l) # TODO use lemmas
@@ -147,4 +148,4 @@ if __name__ == '__main__':
     words, senses, clauses, integration_labels, sents, targets = preprocess.encode2()
     pred_file = open('Data\\toy\\prediction.clf', 'w', encoding="utf-8")
     for i, (sen, tar) in enumerate(zip(sents, targets)):
-        decode(sen, [tuple_to_dictlist(t[0]) for t in tar], [tuple_to_list(t[1]) for t in tar], [tuple_to_iterlabels(t[2]) for t in tar], i+1, pred_file)
+        decode(sen, [tuple_to_dictlist(t[0]) for t in tar], [tuple_to_list(t[1]) for t in tar], [tuple_to_iterlabels(t[2]) for t in tar], senses.token_to_ix, i+1, pred_file)
