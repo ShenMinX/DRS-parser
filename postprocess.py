@@ -17,6 +17,7 @@ import util
 
 import preprocess
 
+from nltk.stem import WordNetLemmatizer
 
 def parse_label(string):
     if string in ('-BOS-', '-EOS-', '[MASK_LABEL]'): # wonky label
@@ -64,6 +65,7 @@ def read_lemmas(blocks):
 
 def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, outfile, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
     checker = drs.Checker(mode)
+    lemmatizer = WordNetLemmatizer()
     if roles:
         roler = srl.Roler((json.loads(l) for l in roles), checker)
     if lemmas:
@@ -102,7 +104,10 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
         # )
         sensed_fragment = []
         for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
-            if (w not in senses_vocab and "\"tom\"" in s) or s=="[UNK]":
+            if w not in senses_vocab and "\"tom\"" in s:
+                sensed_fragment.append(symbolize(f, w, l))
+            elif w not in senses_vocab and "work" in s:
+                l = lemmatizer.lemmatize(w)
                 sensed_fragment.append(symbolize(f, w, l))
             else:
                 sensed_fragment.append(mask.unmask_fragment(f, s))
