@@ -107,11 +107,19 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
 
             sense_seq = []
 
-            if "work" in syms and "\"v.00\"" in syms:
+            if "work" in syms:
                 for ch in syms["work"]:
                     chars.insert(ch)
                     sense_seq.append(ch)
-                match = SENSE_STRING_PATTERN.search(syms["\"v.00\""])
+                if "\"v.00\"" in syms:
+                    pos_num = syms["\"v.00\""]
+                elif "\"a.00\"" in syms:
+                    pos_num = syms["\"a.00\""]
+                elif "\"r.00\"" in syms:
+                    pos_num = syms["\"r.00\""]
+                elif "\"n.00\"" in syms:
+                    pos_num = syms["\"n.00\""]
+                match = SENSE_STRING_PATTERN.search(pos_num)
                 chars.insert("["+match.group('pos')+"]")
                 sense_seq.append("["+match.group('pos')+"]")
                 chars.insert("["+match.group('number')+"]")
@@ -204,7 +212,8 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 if __name__ == '__main__':
     #encode()
-    words, chars, clauses, integration_labels, sents, char_sents, targets, target_senses, max_sense_lens =encode2()
+    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
+         target_senses, max_sense_lens =encode2()
 
     for seq in target_senses:
         print(seq)

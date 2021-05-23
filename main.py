@@ -323,7 +323,7 @@ if __name__ == '__main__':
         n_of_t2 = 0
         n_of_t = 0
         correct = 0
-
+        new = 0
         test_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, padded_char_input, target_s, \
@@ -398,6 +398,8 @@ if __name__ == '__main__':
                             correct +=1
                         if padded_sense[b, i, j]!=chars.token_to_ix['[PAD]']:
                             n_of_t +=1
+                        if dec_pred[b]==chars.token_to_ix['[a]'] or dec_pred[b]==chars.token_to_ix['[v]'] or dec_pred[b]==chars.token_to_ix['[n]'] or dec_pred[b]==chars.token_to_ix['[r]']:
+                            new += 1
 
                         
             
@@ -435,10 +437,10 @@ if __name__ == '__main__':
                         correct_i +=1
                 n_of_t2 += ti.shape[0]
         
-    print("Sense Accurancy: ", correct/n_of_t)
-    print("Fragment Accurancy: ", correct_f/n_of_t2)
-    print("intergration label Accurancy: ", correct_i/n_of_t2)
-
+        print("Sense Accurancy: ", correct/n_of_t)
+        print("Fragment Accurancy: ", correct_f/n_of_t2)
+        print("intergration label Accurancy: ", correct_i/n_of_t2)
+        print("New: ", new)
 
         # _, _, rouge_1 = rouge_n_summary_level(final_preds, rouge_target, 1)
         # print('ROUGE-1: %f' % rouge_1)

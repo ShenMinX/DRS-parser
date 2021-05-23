@@ -118,8 +118,8 @@ def my_collate(batch):
         char_seq = []
         sense_seq = []
         for word, sense in zip(item[4],item[5]):
-            char_seq.append(mydata.padding(word, max_word_len_batch))
-            sense_seq.append(mydata.padding(sense, max_sense_len_batch))
+            char_seq.append(padding(word, max_word_len_batch))
+            sense_seq.append(padding(sense, max_sense_len_batch))
         char_sent.append(torch.LongTensor(char_seq).to(device))
         target_s.append(torch.LongTensor(sense_seq).to(device))
     
