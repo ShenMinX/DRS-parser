@@ -267,7 +267,7 @@ if __name__ == '__main__':
                 batch_loss = batch_loss + frg_loss + inter_loss
 
 
-
+            seq_loss =0.0
             for i in range(max_tl):
             
                 enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
@@ -294,7 +294,12 @@ if __name__ == '__main__':
                     p_step_loss = criterion(torch.log(output*mask[:, i].view(-1,1) + eps), padded_sense[:,i, j]*mask[:, i])
                     #p_step_loss, nTotal = maskNLLLoss(output + eps, padded_sense[:,i, j], mask[:, i].view(-1,1))
 
-                    batch_loss = batch_loss + p_step_loss
+                    seq_loss = seq_loss + p_step_loss
+
+            with torch.no_grad():
+                total_loss += float(batch_loss + seq_loss/(mask.sum()))
+            
+            batch_loss = batch_loss + seq_loss
 
             optimizer.zero_grad()
             enc_optimizer.zero_grad()
@@ -315,8 +320,8 @@ if __name__ == '__main__':
                 bert_optimizer.step()
                 scheduler.step()
 
-        with torch.no_grad():
-            total_loss += float(batch_loss)
+        # with torch.no_grad():
+        #     total_loss += float(batch_loss)
 
         print(e+1, ". total loss:", total_loss)
 
@@ -372,6 +377,24 @@ if __name__ == '__main__':
 
             frg_out, inter_out = tagging_model(padded_input)
 
+        ###masking non-content###
+
+            frg_pred = torch.argmax(frg_out, 2)
+
+            #tile_multiples = torch.cat((torch.ones(len(frg_pred.shape), dtype=torch.long).to(device),torch.LongTensor([content_set.shape[0]]).to(device)), 0)
+
+            tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
+
+            mask = torch.eq(tile, content_set).any(2)[:, 1:] # remove BOS column
+
+
+            assert padded_sense.shape[0] == mask.shape[0]
+            assert padded_sense.shape[1] == mask.shape[1]
+            assert mask.sum()!=0
+
+
+        ###masking non-content###
+
             frg_max = torch.argmax(frg_out, 2)
             inter_max = torch.argmax(inter_out, 2)
 
@@ -392,7 +415,7 @@ if __name__ == '__main__':
 
                 # with torch.no_grad():
                 #     rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
-
+                
                 for j in range(max_sense_len):
     
                     output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input[:,i,:]) # batch x vocab_size
@@ -404,11 +427,11 @@ if __name__ == '__main__':
                     dec_input = dec_pred.view(batch_size, 1)
 
                     for b in range(batch_size):
-                        if padded_sense[b, i, j]==dec_pred[b] and dec_pred[b]!=chars.token_to_ix['[PAD]']:
+                        if padded_sense[b, i, j]==dec_pred[b]*mask[b, i] and dec_pred[b]*mask[b, i]!=chars.token_to_ix['[PAD]']:
                             correct +=1
                         if padded_sense[b, i, j]!=chars.token_to_ix['[PAD]']:
                             n_of_t +=1
-                        if dec_pred[b]==chars.token_to_ix['[a]'] or dec_pred[b]==chars.token_to_ix['[v]'] or dec_pred[b]==chars.token_to_ix['[n]'] or dec_pred[b]==chars.token_to_ix['[r]']:
+                        if dec_pred[b]*mask[b, i]==chars.token_to_ix['[a]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[v]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[n]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[r]']:
                             new += 1
 
                         
