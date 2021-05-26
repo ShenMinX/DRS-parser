@@ -23,7 +23,7 @@ class dictionary():
             self.ix_to_token[ix] = token 
 
     def insert_mark(self):
-        marks = ["[PAD]","-EOS-","-BOS-","[UNK]"]
+        marks = set(["[PAD]","-EOS-","-BOS-","[UNK]"])
         for m in marks:
             self.insert(m)   
 
@@ -42,6 +42,13 @@ def ixs_to_tokens(ix_to_token, ixs):
         out.append(ix_to_token[w])
     return out
 
+def ixs_to_tokens_no_mark(ix_to_token, ixs):
+    out = []
+    for w in ixs:
+        if ix_to_token[w] != "[PAD]" and ix_to_token[w] != "-EOS-" and ix_to_token[w] != "-BOS-" and ix_to_token[w] != "[UNK]":
+            out.append(ix_to_token[w])
+    return out
+
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
@@ -56,7 +63,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
 
     content_frg_idx = set([clauses.token_to_ix["-EOS-"]])
 
-    chars.insert("-EOSEN-")
+    # chars.insert("-EOSEN-")
 
     SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
 
@@ -147,8 +154,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
             
             max_sense_len = max(len(sense_seq), max_sense_len)
 
-        char_sent.append(["-EOSEN-"])
-        sense_seqence.append(["-EOSEN-"])
+        # char_sent.append(["-EOSEN-"])
+        # sense_seqence.append(["-EOSEN-"])
 
         sent.append("-EOS-")
         target.append(("-EOS-", "-EOS-"))

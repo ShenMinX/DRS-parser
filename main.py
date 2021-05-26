@@ -14,8 +14,6 @@ import mydata
 import preprocess
 from models import Linear_classifiers, Encoder, Decoder
 
-# from rouge import rouge_n_summary_level
-# from rouge import rouge_l_summary_level
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -244,7 +242,7 @@ if __name__ == '__main__':
 
             tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
 
-            mask = torch.eq(tile, content_set).any(2)[:, 1:] # remove BOS column
+            mask = torch.eq(tile, content_set).any(2)[:, 1:-1] # remove BOS & EOS column
 
 
             assert padded_sense.shape[0] == mask.shape[0]
@@ -278,7 +276,7 @@ if __name__ == '__main__':
                 
                 #with torch.no_grad():
                     #rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
-                rnn_hid_0 = bert2dec_hid(padded_input[:, i, :])
+                rnn_hid_0 = bert2dec_hid(padded_input[:,1:-1,:][:, i, :])
                 rnn_hid = (rnn_hid_0,rnn_hid_0)
 
                 for j in range(max_sense_len):
@@ -385,7 +383,7 @@ if __name__ == '__main__':
 
             tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
 
-            mask = torch.eq(tile, content_set).any(2)[:, 1:] # remove BOS column
+            mask = torch.eq(tile, content_set).any(2)[:, 1:-1] # remove BOS column
 
 
             assert padded_sense.shape[0] == mask.shape[0]
@@ -401,7 +399,7 @@ if __name__ == '__main__':
             max_tl = padded_sense.shape[1]
 
             max_sense_len = padded_sense.shape[2]
-             
+            pred_seq = torch.LongTensor([]).to(device)
             for i in range(max_tl):
 
                 enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
@@ -410,19 +408,19 @@ if __name__ == '__main__':
 
                 dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
                  
-                rnn_hid_0 = bert2dec_hid(padded_input[:, i, :])
+                rnn_hid_0 = bert2dec_hid(padded_input[:,1:-1,:][:, i, :])
                 rnn_hid = (rnn_hid_0,rnn_hid_0)
 
                 # with torch.no_grad():
                 #     rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device)) # default init_hidden_value
-                
+                pred_sense = torch.LongTensor([]).to(device)
                 for j in range(max_sense_len):
     
                     output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input[:,i,:]) # batch x vocab_size
                 
                     _, dec_pred = torch.max(output, 1) # batch_size vector
 
-                    #pred = torch.cat([pred, dec_pred.view(batch_size, 1)], dim = 1)
+                    pred_sense = torch.cat([pred_sense, (dec_pred*mask[:, i]).view(batch_size, 1)], dim = 1)
 
                     dec_input = dec_pred.view(batch_size, 1)
 
@@ -434,55 +432,35 @@ if __name__ == '__main__':
                         if dec_pred[b]*mask[b, i]==chars.token_to_ix['[a]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[v]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[n]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[r]']:
                             new += 1
 
+                pred_seq = torch.cat([pred_seq, pred_sense.unsqueeze(1)], dim = 1)
                         
-            
-            # unpad for evaluation
-            # for b in range(batch_size):
-            #     final_pred = pred[b,:][pred[b,:]!=chars.token_to_ix['[PAD]']].tolist()
-
-            #     final_preds.append(final_pred)
+            assert pred_seq.shape[1] == frg_max.shape[1] - 2
 
             unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
             unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
             frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
-        
-        # for p, t in zip(final_preds, te_target_senses):
-        #     print(p, t)
 
-        # n_of_t = 0
-        # correct = 0
-        # rouge_target = []
-        # for predic, targ in zip(final_preds, te_target_senses):
-        #     targ_list = preprocess.tokens_to_ixs(chars.token_to_ix, targ)
-        #     rouge_target.append(targ_list)
-        #     min_length = min(len(targ_list), len(predic)) 
-        #     for i in range(min_length):
-        #         if predic[i]==targ_list[i]:
-        #             correct += 1
-        #     n_of_t += len(targ_list)
-            for  tf, ti, pf, pi in zip(target_f, target_i, unpad_frg, unpad_inter):
-                for s_idx in range(len(pf)):
-                    if tf[s_idx]==pf[s_idx]:
+            sense_pred = []
+            for i, l in enumerate(seq_len):
+                sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, sen_chars.tolist())) for sen_chars in pred_seq[i,:l-2]])
+
+
+            for  ts, tf, ti, ps, pf, pi in zip(padded_sense, target_f, target_i, sense_pred, unpad_frg, unpad_inter):              
+                for s_idx in range(len(pf)-2):
+                    if tf[1:-1][s_idx]==pf[1:-1][s_idx]:
                         correct_f +=1
-                    if ti[s_idx]==pi[s_idx]:
+                    if ti[1:-1][s_idx]==pi[1:-1][s_idx]:
                         correct_i +=1
-                n_of_t2 += ti.shape[0]
+                
+                n_of_t2 += ti.shape[0]-2
         
         print("Sense Accurancy: ", correct/n_of_t)
         print("Fragment Accurancy: ", correct_f/n_of_t2)
         print("intergration label Accurancy: ", correct_i/n_of_t2)
         print("New: ", new)
 
-        # _, _, rouge_1 = rouge_n_summary_level(final_preds, rouge_target, 1)
-        # print('ROUGE-1: %f' % rouge_1)
-
-        # _, _, rouge_2 = rouge_n_summary_level(final_preds, rouge_target, 2)
-        # print('ROUGE-2: %f' % rouge_2)
-        
-        # _, _, rouge_l = rouge_l_summary_level(final_preds, rouge_target) # extremely time consuming...
-        # print('ROUGE-L: %f' % rouge_l)
 
 
 
