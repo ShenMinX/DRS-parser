@@ -54,7 +54,7 @@ def valid_tokenizing(sent, tokenizer, device):
 class Dataset(data.Dataset):
 
     def __init__(self, sents, char_sents, targets, target_senses, max_sense_lens, word_to_ix, \
-        char_to_ix, fragment_to_ix, itergration_to_ix, content_frg_idx, tokenizer, device): 
+        char_to_ix, fragment_to_ix, itergration_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device): 
         'Initialization'
         self.sents = sents
         self.char_sents = char_sents
@@ -63,6 +63,7 @@ class Dataset(data.Dataset):
         self.max_sense_lens = max_sense_lens
 
         self.content_frg_idx = content_frg_idx
+        self.prpname_frg_idx = prpname_frg_idx
 
         self.char_to_ix = char_to_ix
         self.fragment_to_ix = fragment_to_ix
@@ -136,11 +137,11 @@ if __name__ == "__main__":
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
 
-    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2()
+    words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens = preprocess.encode2()
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt")
 
     my_data = Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
-         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, tokenizer, device)
+         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
     
     loader = data.DataLoader(dataset=my_data, batch_size=32, shuffle=False, collate_fn=my_collate)
     

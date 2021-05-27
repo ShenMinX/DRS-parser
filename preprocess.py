@@ -61,9 +61,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     clauses = dictionary()
     integration_labels = dictionary()
 
-    content_frg_idx = set([clauses.token_to_ix["-EOS-"]])
-
-    # chars.insert("-EOSEN-")
+    content_frg_idx = set([])
+    prpname_frg_idx = set([])
 
     SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
 
@@ -141,6 +140,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
                         sense_seq.append(ch)
                 sense_seq.append("-EOS-")
                 content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                prpname_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
 
             else:
                 sense_seq.append("[PAD]")
@@ -154,8 +154,6 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
             
             max_sense_len = max(len(sense_seq), max_sense_len)
 
-        # char_sent.append(["-EOSEN-"])
-        # sense_seqence.append(["-EOSEN-"])
 
         sent.append("-EOS-")
         target.append(("-EOS-", "-EOS-"))
@@ -169,7 +167,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
 
 
-    return words, chars, clauses, integration_labels, content_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens
+    return words, chars, clauses, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
@@ -219,7 +217,7 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 if __name__ == '__main__':
     #encode()
-    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
+    words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
          target_senses, max_sense_lens =encode2()
 
     for seq in target_senses:

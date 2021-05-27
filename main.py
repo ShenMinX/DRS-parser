@@ -107,32 +107,20 @@ if __name__ == '__main__':
     shuffle_dataset = True
     random_seed = 33
     
-    words, chars, fragments, integration_labels, content_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8'))
+    words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    dataset = mydata.Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
-         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, tokenizer, device)
-
-    dataset_size = len(dataset)
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
-
-    if shuffle_dataset:
-        np.random.seed(random_seed)
-        np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
-
-    train_sampler = data.sampler.SubsetRandomSampler(train_indices)
-    valid_sampler = data.sampler.SubsetRandomSampler(val_indices)
+    train_set = mydata.Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
+         fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
     bert_model.config.output_hidden_states=True
 
-    train_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=train_sampler,shuffle=False, collate_fn=my_collate)
+    train_loader = data.DataLoader(dataset=train_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -177,7 +165,7 @@ if __name__ == '__main__':
 
     #for masking non_content
     with torch.no_grad():
-        content_set = torch.LongTensor(list(dataset.content_frg_idx)).to(device)
+        content_set = torch.LongTensor(list(train_set.content_frg_idx)).to(device)
 
     if fine_tune == True:
         bert_optimizer = AdamW(bert_model.parameters(), lr=1e-5)
@@ -336,7 +324,13 @@ if __name__ == '__main__':
         n_of_t = 0
         correct = 0
         new = 0
-        test_loader = data.DataLoader(dataset=dataset, batch_size=hyper_batch_size, sampler=valid_sampler, shuffle=False, collate_fn=my_collate)
+        _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
+             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
+
+        test_set = mydata.Dataset(te_sents,te_char_sents,te_targets,te_target_senses, te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
+             fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
+
+        test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, padded_char_input, target_s, \
              target_f, target_i, words_lens) in enumerate(test_loader):
