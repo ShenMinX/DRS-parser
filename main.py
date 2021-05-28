@@ -187,10 +187,6 @@ if __name__ == '__main__':
             embeddings = bert_outputs.hidden_states[7]
 
             # valid_embeds = [
-            #     embeds[torch.nonzero(valid).squeeze(1)]
-            #     for embeds, valid in zip(embeddings, valid_indices)]
-
-            # valid_embeds = [
             #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
             #     for embeds, valid in zip(embeddings, valid_indices)]
 
@@ -337,12 +333,7 @@ if __name__ == '__main__':
 
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.hidden_states[7]
-
-            # valid_embeds = [
-            #     embeds[torch.nonzero(valid).squeeze(1)]
-            #     for embeds, valid in zip(embeddings, valid_indices)]
-
-            
+         
             # valid_embeds = [
             #     embeds[valid[:-1]]
             #     for embeds, valid in zip(embeddings, valid_indices)]
@@ -443,11 +434,11 @@ if __name__ == '__main__':
 
             for  ts, tf, ti, ps, pf, pi in zip(padded_sense, target_f, target_i, sense_pred, unpad_frg, unpad_inter):              
                 for s_idx in range(len(pf)-2):
-                    if tf[1:-1][s_idx]==pf[1:-1][s_idx]:
+                    if tf[1:-1][s_idx]==pf[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_f +=1
-                    if ti[1:-1][s_idx]==pi[1:-1][s_idx]:
+                    if ti[1:-1][s_idx]==pi[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_i +=1
-                
+    
                 n_of_t2 += ti.shape[0]-2
         
         print("Sense Accurancy: ", correct/n_of_t)
