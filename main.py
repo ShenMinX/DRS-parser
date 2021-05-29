@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 15
+    epochs = 5
 
     bert_embed_size = 768
 
@@ -403,42 +403,49 @@ if __name__ == '__main__':
     
                     output, rnn_hid = model_decoder(enc_out, rnn_hid, dec_input, padded_char_input[:,i,:]) # batch x vocab_size
                 
-                    _, dec_pred = torch.max(output, 1) # batch_size vector
+                    _, unmasked_dec_pred = torch.max(output, 1) # batch_size vector
+                    dec_pred = unmasked_dec_pred*mask[:, i]
 
-                    pred_sense = torch.cat([pred_sense, (dec_pred*mask[:, i]).view(batch_size, 1)], dim = 1)
+                    pred_sense = torch.cat([pred_sense, (dec_pred).view(batch_size, 1)], dim = 1)
 
                     dec_input = dec_pred.view(batch_size, 1)
-
-                    for b in range(batch_size):
-                        if padded_sense[b, i, j]==dec_pred[b]*mask[b, i] and dec_pred[b]*mask[b, i]!=chars.token_to_ix['[PAD]']:
-                            correct +=1
-                        if padded_sense[b, i, j]!=chars.token_to_ix['[PAD]']:
-                            n_of_t +=1
-                        if dec_pred[b]*mask[b, i]==chars.token_to_ix['[a]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[v]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[n]'] or dec_pred[b]*mask[b, i]==chars.token_to_ix['[r]']:
-                            new += 1
 
                 pred_seq = torch.cat([pred_seq, pred_sense.unsqueeze(1)], dim = 1)
                         
             assert pred_seq.shape[1] == frg_max.shape[1] - 2
 
-            unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
-            unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+            # unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+            # unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
-            frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
-            inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
+            #frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
+            #inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
+            # sense_pred = []
+            # for i, l in enumerate(seq_len):
+            #     sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, sen_chars.tolist())) for sen_chars in pred_seq[i,:l-2]])
+            frg_pred = []
+            inter_pred = []
             sense_pred = []
-            for i, l in enumerate(seq_len):
-                sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, sen_chars.tolist())) for sen_chars in pred_seq[i,:l-2]])
-
-
-            for  ts, tf, ti, ps, pf, pi in zip(padded_sense, target_f, target_i, sense_pred, unpad_frg, unpad_inter):              
-                for s_idx in range(len(pf)-2):
+            for  sl, ts, tf, ti, ps, pf, pi in zip(seq_len, padded_sense, target_f, target_i, pred_seq, frg_max, inter_max):              
+                for s_idx in range(sl-2):
                     if tf[1:-1][s_idx]==pf[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_f +=1
+                
                     if ti[1:-1][s_idx]==pi[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_i +=1
-    
+
+                    for i in range(max_sense_len):
+                        if ts[s_idx, i]==ps[s_idx, i] and ps[s_idx, i]!=chars.token_to_ix['[PAD]']:
+                            correct +=1
+                        if ts[s_idx, i]!=chars.token_to_ix['[PAD]']:
+                            n_of_t +=1
+                        if ps[s_idx, i]==chars.token_to_ix['[a]'] or ps[s_idx, i]==chars.token_to_ix['[v]'] or ps[s_idx, i]==chars.token_to_ix['[n]'] or ps[s_idx, i]==chars.token_to_ix['[r]']:
+                            new += 1
+                
+                frg_pred.append(preprocess.ixs_to_tokens(fragments.ix_to_token, tf[1:sl-1].tolist()))
+                inter_pred.append(preprocess.ixs_to_tokens(integration_labels.ix_to_token, ti[1:sl-1].tolist()))
+                sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist())) for ss in ps[:sl-2]])
+
                 n_of_t2 += ti.shape[0]-2
         
         print("Sense Accurancy: ", correct/n_of_t)
