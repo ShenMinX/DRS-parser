@@ -91,7 +91,7 @@ class Dataset(data.Dataset):
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, self.max_sense_lens[index])
+        return (input_ids, token_type_ids, attention_mask, valid_indices, char_sent, target_s, target_f, traget_i, words_len, self.max_sense_lens[index], sent)
 
     
 def my_collate(batch):
@@ -113,6 +113,8 @@ def my_collate(batch):
     max_word_len_batch = max([max(item[8]) for item in batch])
     max_sense_len_batch = max([item[9] for item in batch])
 
+    sentences = [item[10] for item in batch]
+
     char_sent = []
     target_s = []
     for item in batch:
@@ -130,7 +132,7 @@ def my_collate(batch):
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
-    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens
+    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens, sentences
 
 
 if __name__ == "__main__":
@@ -145,7 +147,7 @@ if __name__ == "__main__":
     
     loader = data.DataLoader(dataset=my_data, batch_size=32, shuffle=False, collate_fn=my_collate)
     
-    for idx, (bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens) in enumerate(loader):
+    for idx, (bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens, sentences) in enumerate(loader):
         print(words_lens)
 
         print("-------------------------")

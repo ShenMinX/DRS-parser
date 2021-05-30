@@ -216,11 +216,11 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
 
 
 if __name__ == '__main__':
-    #encode()
-    words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens =encode2()
+    encode()
+    # words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
+    #      target_senses, max_sense_lens =encode2()
 
-    for seq in target_senses:
-        print(seq)
+    # for seq in target_senses:
+    #     print(seq)
     # for sen in char_sents:
     #     print(sen)

@@ -13,6 +13,8 @@ from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
 import mydata
 import preprocess
 from models import Linear_classifiers, Encoder, Decoder
+from postprocess import decode, tuple_to_list, tuple_to_iterlabels
+from postproces_sense import get_ws_nltk, get_ws_simple
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -52,6 +54,8 @@ def my_collate(batch):
     max_word_len_batch = max([max(item[8]) for item in batch])
     max_sense_len_batch = max([item[9] for item in batch])
 
+    sentences = [item[10] for item in batch]
+
     char_sent = []
     target_s = []
     for item in batch:
@@ -68,7 +72,7 @@ def my_collate(batch):
     target_f = [torch.LongTensor(item[6]).to(device) for item in batch]
     target_i = [torch.LongTensor(item[7]).to(device) for item in batch]
 
-    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens
+    return bert_input, valid_indices, padded_char_input, target_s, target_f, target_i, words_lens, sentences
 
 
 def average_word_emb(emb, valid):
@@ -175,7 +179,7 @@ if __name__ == '__main__':
         total_loss = 0.0
         
         for idx, (bert_input, valid_indices, padded_char_input, target_s, \
-             target_f, target_i, words_lens) in enumerate(train_loader):
+             target_f, target_i, words_lens, sentences) in enumerate(train_loader):
 
             if fine_tune == False:
                 with torch.no_grad():
@@ -236,7 +240,7 @@ if __name__ == '__main__':
 
         ###masking non-content###
 
-            batch_loss = 0.0
+            batch_loss = torch.zeros(1)
 
             max_tl = padded_sense.shape[1]
 
@@ -249,7 +253,7 @@ if __name__ == '__main__':
                 batch_loss = batch_loss + frg_loss + inter_loss
 
 
-            seq_loss =0.0
+            seq_loss =torch.zeros(1)
             for i in range(max_tl):
             
                 enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])
@@ -322,6 +326,7 @@ if __name__ == '__main__':
         new = 0
         _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
              te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
+        pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_set = mydata.Dataset(te_sents,te_char_sents,te_targets,te_target_senses, te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
              fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
@@ -329,7 +334,7 @@ if __name__ == '__main__':
         test_loader = data.DataLoader(dataset=test_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
         for idx, (bert_input, valid_indices, padded_char_input, target_s, \
-             target_f, target_i, words_lens) in enumerate(test_loader):
+             target_f, target_i, words_lens, sentences) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
             embeddings = bert_outputs.hidden_states[7]
@@ -414,19 +419,8 @@ if __name__ == '__main__':
                         
             assert pred_seq.shape[1] == frg_max.shape[1] - 2
 
-            # unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
-            # unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
-            #frg_pred = [preprocess.ixs_to_tokens(fragments.ix_to_token, seq) for seq in unpad_frg]
-            #inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
-
-            # sense_pred = []
-            # for i, l in enumerate(seq_len):
-            #     sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, sen_chars.tolist())) for sen_chars in pred_seq[i,:l-2]])
-            frg_pred = []
-            inter_pred = []
-            sense_pred = []
-            for  sl, ts, tf, ti, ps, pf, pi in zip(seq_len, padded_sense, target_f, target_i, pred_seq, frg_max, inter_max):              
+            for  sl, ts, tf, ti, ps, pf, pi, sentence in zip(seq_len, padded_sense, target_f, target_i, pred_seq, frg_max, inter_max, sentences):              
                 for s_idx in range(sl-2):
                     if tf[1:-1][s_idx]==pf[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_f +=1
@@ -442,12 +436,15 @@ if __name__ == '__main__':
                         if ps[s_idx, i]==chars.token_to_ix['[a]'] or ps[s_idx, i]==chars.token_to_ix['[v]'] or ps[s_idx, i]==chars.token_to_ix['[n]'] or ps[s_idx, i]==chars.token_to_ix['[r]']:
                             new += 1
                 
-                frg_pred.append(preprocess.ixs_to_tokens(fragments.ix_to_token, tf[1:sl-1].tolist()))
-                inter_pred.append(preprocess.ixs_to_tokens(integration_labels.ix_to_token, ti[1:sl-1].tolist()))
-                sense_pred.append(["".join(preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist())) for ss in ps[:sl-2]])
-
+                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, tf[1:sl-1].tolist())]
+                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens(integration_labels.ix_to_token, ti[1:sl-1].tolist())]
+                senses_to_be_decoded = [get_ws_nltk(word, frg in train_set.prpname_frg_idx, frg in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist())) for ss, word, frg in zip(ps[:sl-2], sentence[1:-1], tf[1:sl-1].tolist())]
+                decode(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, i+1, pred_file)
+    
                 n_of_t2 += ti.shape[0]-2
         
+        pred_file.close()
+
         print("Sense Accurancy: ", correct/n_of_t)
         print("Fragment Accurancy: ", correct_f/n_of_t2)
         print("intergration label Accurancy: ", correct_i/n_of_t2)
