@@ -57,7 +57,7 @@ if __name__ == '__main__':
     fine_tune  = True
 
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold\\train.clf', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -156,8 +156,8 @@ if __name__ == '__main__':
         # correct_i = 0
         # n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\ms_data\\gold\\test.clf', encoding = 'utf-8'))
-        pred_file = open('Data\\ms_data\\gold\\prediction.clf', 'w', encoding="utf-8")
+        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
+        pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
 
@@ -217,7 +217,8 @@ if __name__ == '__main__':
 
             for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
                 #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
-                decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, i+1, pred_file)
+                decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file)
+                count+=1
     pred_file.close()
 
 
