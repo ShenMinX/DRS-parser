@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
         ###masking non-content###
 
-            batch_loss = torch.zeros(1)
+            batch_loss = 0.0
 
             max_tl = padded_sense.shape[1]
 
@@ -253,7 +253,7 @@ if __name__ == '__main__':
                 batch_loss = batch_loss + frg_loss + inter_loss
 
 
-            seq_loss =torch.zeros(1)
+            seq_loss = 0.0
             for i in range(max_tl):
             
                 enc_out, enc_hidden = model_encoder(padded_char_input[:,i,:])

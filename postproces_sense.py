@@ -32,7 +32,10 @@ def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list):
             return {"work": "".join(concept).lower(),"\""+ pos +".00"+"\"": "\""+pos+"."+ss_num+"\"" }
         elif (not not concept) and (pos!="" or ss_num!=""):
             c_p_n_list = get_close_matches(prototype, gold_senses)[0].split(".")
-            return {"work": c_p_n_list[0],"\""+ c_p_n_list[1] +".00"+"\"": "\""+c_p_n_list[1]+"."+c_p_n_list[2]+"\"" }
+            if not c_p_n_list:
+                return {"work": c_p_n_list[0],"\""+ c_p_n_list[1] +".00"+"\"": "\""+c_p_n_list[1]+"."+c_p_n_list[2]+"\"" }
+            else:
+                "[ILLFORM]"
         else:
             return "[ILLFORM]"
     else:
