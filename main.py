@@ -439,7 +439,7 @@ if __name__ == '__main__':
                 
                 frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens_no_mark(fragments.ix_to_token, pf[1:sl-1].tolist(), tuple([]))]
                 inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens_no_mark(integration_labels.ix_to_token, pi[1:sl-1].tolist(), preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}))]
-                senses_to_be_decoded = [get_ws_nltk(word, frg in train_set.prpname_frg_idx, frg in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), "")) for ss, word, frg in zip(ps[:sl-2], sentence[1:-1], pf[1:sl-1].tolist())]
+                senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl-2], sentence[1:-1], pf[1:sl-1].tolist(), frgs_pred)]
                 try:
                     decode(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
                 except IndexError:

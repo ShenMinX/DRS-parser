@@ -11,7 +11,7 @@ LEMMATIZER = WordNetLemmatizer()
 POS_PATTERN = re.compile(r"\[(?P<pos>[a,v,n,r])\]")
 SENSE_NUMBER_PATTERN = re.compile(r"\[(?P<number>\d\d)\]")
 
-def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list):
+def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list, frg:list):
     if is_prpn:
         if word !="":
             return {"\"tom\"": ["\""+word.lower()+"\""]}
@@ -19,10 +19,21 @@ def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list):
             return "[ILLFORM]"
             
     elif not is_prpn and is_content:
+        for cl in frg:
+            if cl[2] == '"n.00"':
+                frg_pos = "n"
+            elif cl[2] == '"v.00"':
+                frg_pos = "v"
+            elif cl[2] == '"r.00"':
+                frg_pos = "r"
+            elif cl[2] == '"a.00"':
+                frg_pos = "a"
+        GOLD_SENSE_PATTERN = re.compile('^[a-z]+\.'+frg_pos+'\.\d\d$')
         concept = []
         pos = ""
         ss_num = ""
-        gold_senses =  [re.sub(r"\.s\.", ".a.", ss.name()) for ss in wn.synsets(word)]
+        all_senses =  [re.sub(r"\.s\.", ".a.", ss.name()) for ss in wn.synsets(word)]
+        gold_senses = [ss for ss in all_senses if GOLD_SENSE_PATTERN.match(ss)]
         for c in sense_chars:
             if bool(re.match(POS_PATTERN, c)):
                 pos = c[1]
