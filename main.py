@@ -151,10 +151,10 @@ if __name__ == '__main__':
 
     with torch.no_grad():
 
-        # correct_s = 0
-        # correct_f = 0
-        # correct_i = 0
-        # n_of_t = 0
+        correct_s = 0
+        correct_f = 0
+        correct_i = 0
+        n_of_t = 0
         count = 1
         _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
@@ -199,28 +199,29 @@ if __name__ == '__main__':
             frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
             inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
-    #         for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
-    #             for s_idx in range(len(ps)):
-    #                 if ts[s_idx]==ps[s_idx]:
-    #                     correct_s +=1
-    #                 if tf[s_idx]==pf[s_idx]:
-    #                     correct_f +=1
-    #                 if ti[s_idx]==pi[s_idx]:
-    #                     correct_i +=1
-    #             n_of_t += ts.shape[0]
+            for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
+                for s_idx in range(len(ps)):
+                    if ts[s_idx]==ps[s_idx]:
+                        correct_s +=1
+                    if tf[s_idx]==pf[s_idx]:
+                        correct_f +=1
+                    if ti[s_idx]==pi[s_idx]:
+                        correct_i +=1
+                n_of_t += ts.shape[0]
 
-    # print("Sense Accurancy: ", correct_s/n_of_t)
-    # print("Fragment Accurancy: ", correct_f/n_of_t)
-    # print("intergration label Accurancy: ", correct_i/n_of_t)
+     
 
-    #python counter.py -f1 prediction.clf -f2 test.clf -g clf_signature.yaml
+        #python counter.py -f1 prediction.clf -f2 dev.txt -prin -g clf_signature.yaml
 
             for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
                 #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
                 decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file)
                 count+=1
-    pred_file.close()
+        pred_file.close()
 
+        print("Sense Accurancy: ", correct_s/n_of_t)
+        print("Fragment Accurancy: ", correct_f/n_of_t)
+        print("intergration label Accurancy: ", correct_i/n_of_t)
 
 
 
