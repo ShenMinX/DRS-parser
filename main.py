@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 5
+    epochs = 15
 
     bert_embed_size = 768
 
@@ -324,6 +324,7 @@ if __name__ == '__main__':
         n_of_t = 0
         correct = 0
         new = 0
+        sent_num = 1
         _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
              te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
@@ -436,11 +437,15 @@ if __name__ == '__main__':
                         if ps[s_idx, i]==chars.token_to_ix['[a]'] or ps[s_idx, i]==chars.token_to_ix['[v]'] or ps[s_idx, i]==chars.token_to_ix['[n]'] or ps[s_idx, i]==chars.token_to_ix['[r]']:
                             new += 1
                 
-                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, tf[1:sl-1].tolist())]
-                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens(integration_labels.ix_to_token, ti[1:sl-1].tolist())]
-                senses_to_be_decoded = [get_ws_nltk(word, frg in train_set.prpname_frg_idx, frg in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist())) for ss, word, frg in zip(ps[:sl-2], sentence[1:-1], tf[1:sl-1].tolist())]
-                decode(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, i+1, pred_file)
-    
+                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens_no_mark(fragments.ix_to_token, pf[1:sl-1].tolist(), tuple([]))]
+                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens_no_mark(integration_labels.ix_to_token, pi[1:sl-1].tolist(), preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}))]
+                senses_to_be_decoded = [get_ws_nltk(word, frg in train_set.prpname_frg_idx, frg in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), "")) for ss, word, frg in zip(ps[:sl-2], sentence[1:-1], pf[1:sl-1].tolist())]
+                try:
+                    decode(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
+                except IndexError:
+                    print(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, sent_num)
+                sent_num += 1
+
                 n_of_t2 += ti.shape[0]-2
         
         pred_file.close()
@@ -450,6 +455,7 @@ if __name__ == '__main__':
         print("intergration label Accurancy: ", correct_i/n_of_t2)
         print("New: ", new)
 
+#python counter.py -f1 prediction.clf -f2 dev.txt -prin -g clf_signature.yaml
 
 
 
