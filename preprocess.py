@@ -47,7 +47,7 @@ def ixs_to_tokens_no_mark(ix_to_token, ixs, zero_token):
     for w in ixs:
         if ix_to_token[w] != "[PAD]" and ix_to_token[w] != "-EOS-" and ix_to_token[w] != "-BOS-":
             out.append(ix_to_token[w])
-        elif ix_to_token[w] == "-EOS-" or ix_to_token[w] == "-BOS-":
+        else:
             out.append(zero_token)
     return out
 
@@ -55,7 +55,7 @@ def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
 def get_words_len(sent):
-    return [len(w)+2 for w in sent[1:-1]]+[1]
+    return [len(w)+2 for w in sent]
 
 def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
     words = dictionary()
@@ -86,9 +86,11 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
         fragments = tuple(drs.sorted(f) for f in fragments)
         fragments = address.debruijnify(fragments)
 
-        sent = ["-BOS-"]
+        # sent = ["-BOS-"]
+        sent = []
         char_sent = []
-        target = [("-BOS-", "-BOS-")]
+        # target = [("-BOS-", "-BOS-")]
+        target = []
         
         
         sense_seqence = []
@@ -157,8 +159,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
             max_sense_len = max(len(sense_seq), max_sense_len)
 
 
-        sent.append("-EOS-")
-        target.append(("-EOS-", "-EOS-"))
+        # sent.append("-EOS-")
+        # target.append(("-EOS-", "-EOS-"))
 
         sents.append(sent)
         char_sents.append(char_sent)

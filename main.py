@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 15
+    epochs = 5
 
     bert_embed_size = 768
 
@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
             tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
 
-            mask = torch.eq(tile, content_set).any(2)[:, 1:-1] # remove BOS & EOS column
+            mask = torch.eq(tile, content_set).any(2) # remove BOS & EOS column
 
 
             assert padded_sense.shape[0] == mask.shape[0]
@@ -264,7 +264,7 @@ if __name__ == '__main__':
                 
                 #with torch.no_grad():
                     #rnn_hid = (torch.zeros(batch_size,dec_hid_size).to(device),torch.zeros(batch_size,dec_hid_size).to(device))
-                rnn_hid_0 = bert2dec_hid(padded_input[:,1:-1,:][:, i, :])
+                rnn_hid_0 = bert2dec_hid(padded_input[:, i, :])
                 rnn_hid = (rnn_hid_0,rnn_hid_0)
 
                 for j in range(max_sense_len):
@@ -374,7 +374,7 @@ if __name__ == '__main__':
 
             tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
 
-            mask = torch.eq(tile, content_set).any(2)[:, 1:-1] # remove BOS column
+            mask = torch.eq(tile, content_set).any(2) # remove BOS column
 
 
             assert padded_sense.shape[0] == mask.shape[0]
@@ -399,7 +399,7 @@ if __name__ == '__main__':
 
                 dec_input = torch.tensor([chars.token_to_ix["-BOS-"]]*batch_size, dtype=torch.long).to(device).view(batch_size, 1)
                  
-                rnn_hid_0 = bert2dec_hid(padded_input[:,1:-1,:][:, i, :])
+                rnn_hid_0 = bert2dec_hid(padded_input[:, i, :])
                 rnn_hid = (rnn_hid_0,rnn_hid_0)
 
                 # with torch.no_grad():
@@ -418,15 +418,15 @@ if __name__ == '__main__':
 
                 pred_seq = torch.cat([pred_seq, pred_sense.unsqueeze(1)], dim = 1)
                         
-            assert pred_seq.shape[1] == frg_max.shape[1] - 2
+            assert pred_seq.shape[1] == frg_max.shape[1] 
 
 
             for  sl, ts, tf, ti, ps, pf, pi, sentence in zip(seq_len, padded_sense, target_f, target_i, pred_seq, frg_max, inter_max, sentences):              
                 for s_idx in range(sl-2):
-                    if tf[1:-1][s_idx]==pf[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
+                    if tf[s_idx]==pf[s_idx] and pf[s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_f +=1
                 
-                    if ti[1:-1][s_idx]==pi[1:-1][s_idx] and pf[1:-1][s_idx]!=chars.token_to_ix['-EOS-']:
+                    if ti[s_idx]==pi[s_idx] and pf[s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_i +=1
 
                     for i in range(max_sense_len):
@@ -437,13 +437,13 @@ if __name__ == '__main__':
                         if ps[s_idx, i]==chars.token_to_ix['[a]'] or ps[s_idx, i]==chars.token_to_ix['[v]'] or ps[s_idx, i]==chars.token_to_ix['[n]'] or ps[s_idx, i]==chars.token_to_ix['[r]']:
                             new += 1
                 
-                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens_no_mark(fragments.ix_to_token, pf[1:sl-1].tolist(), tuple([]))]
-                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens_no_mark(integration_labels.ix_to_token, pi[1:sl-1].tolist(), preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}))]
-                senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl-2], sentence[1:-1], pf[1:sl-1].tolist(), frgs_pred)]
+                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens_no_mark(fragments.ix_to_token, pf[:sl].tolist(), tuple([]))]
+                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens_no_mark(integration_labels.ix_to_token, pi[:sl].tolist(), preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}))]
+                senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl], sentence, pf[:sl].tolist(), frgs_pred)]
                 try:
-                    decode(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
+                    decode(sentence, senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
                 except IndexError:
-                    print(sentence[1:-1], senses_to_be_decoded, frgs_pred, inter_pred, sent_num)
+                    print(sentence, senses_to_be_decoded, frgs_pred, inter_pred, sent_num)
                 sent_num += 1
 
                 n_of_t2 += ti.shape[0]-2
