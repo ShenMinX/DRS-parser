@@ -59,5 +59,28 @@ def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list, frg
         return {}
     
 
-def get_ws_simple(word:str, is_prpname:bool,sense_chars:list):
-    pass
+def get_ws_simple(word:str, is_prpn: bool, is_content: bool, sense_chars:list, frg:list):
+    if is_prpn:
+        if word !="":
+            return {"\"tom\"": ["\""+word.lower()+"\""]}
+        else:
+            return "[ILLFORM]"
+            
+    elif not is_prpn and is_content:
+        concept = []
+        pos = ""
+        ss_num = ""
+        for c in sense_chars:
+            if bool(re.match(POS_PATTERN, c)):
+                pos = c[1]
+            elif bool(re.match(SENSE_NUMBER_PATTERN, c)):
+                ss_num = c[1]+c[2]
+            elif pos == "" and ss_num == "" and not bool(re.match(POS_PATTERN, c)) and not bool(re.match(SENSE_NUMBER_PATTERN, c)):
+                concept.append(c)
+
+        if "".join(concept)!="" and pos!="" and ss_num!="":
+            return {"work": ["".join(concept).lower()],"\""+ pos +".00"+"\"": ["\""+pos+"."+ss_num+"\""] }     
+        else:
+            return "[ILLFORM]"
+    else:
+        return {}
