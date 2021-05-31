@@ -352,7 +352,7 @@ if __name__ == '__main__':
 
             max_word_len = padded_char_input.shape[2]
 
-            seq_len = [s.shape[0] for s in target_f]
+            seq_len = [len(s) for s in sentences]
 
             #chars_contexts = get_char_context(valid_embeds, words_lens, max_word_len)
 
