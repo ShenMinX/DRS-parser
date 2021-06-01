@@ -75,7 +75,7 @@ def get_ws_simple(word:str, is_prpn: bool, is_content: bool, sense_chars:list, f
                 pos = c[1]
             elif bool(re.match(SENSE_NUMBER_PATTERN, c)):
                 ss_num = c[1]+c[2]
-            elif pos == "" and ss_num == "" and not bool(re.match(POS_PATTERN, c)) and not bool(re.match(SENSE_NUMBER_PATTERN, c)):
+            elif pos == "" and ss_num == "" and not bool(re.match(POS_PATTERN, c)) and not bool(re.match(SENSE_NUMBER_PATTERN, c)) and len(c)==1:
                 concept.append(c)
 
         if "".join(concept)!="" and pos!="" and ss_num!="":
