@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 5
+    epochs = 15
 
     bert_embed_size = 768
 
@@ -107,12 +107,12 @@ if __name__ == '__main__':
 
     fine_tune  = True
    
-    validation_split = 0.2
-    shuffle_dataset = True
-    random_seed = 33
+    # validation_split = 0.2
+    # shuffle_dataset = True
+    # random_seed = 33
     
     words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train2.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -321,12 +321,13 @@ if __name__ == '__main__':
         correct_f = 0
         correct_i = 0
         n_of_t2 = 0
+        n_of_t3 = 0
         n_of_t = 0
         correct = 0
         new = 0
         sent_num = 1
         _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
-             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
+             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\test.txt', encoding = 'utf-8'))
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_set = mydata.Dataset(te_sents,te_char_sents,te_targets,te_target_senses, te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
@@ -422,7 +423,7 @@ if __name__ == '__main__':
 
 
             for  sl, ts, tf, ti, ps, pf, pi, sentence in zip(seq_len, padded_sense, target_f, target_i, pred_seq, frg_max, inter_max, sentences):              
-                for s_idx in range(sl-2):
+                for s_idx in range(sl):
                     if tf[s_idx]==pf[s_idx] and pf[s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_f +=1
                 
@@ -434,11 +435,13 @@ if __name__ == '__main__':
                             correct +=1
                         if ts[s_idx, i]!=chars.token_to_ix['[PAD]']:
                             n_of_t +=1
-                        if ps[s_idx, i]==chars.token_to_ix['[a]'] or ps[s_idx, i]==chars.token_to_ix['[v]'] or ps[s_idx, i]==chars.token_to_ix['[n]'] or ps[s_idx, i]==chars.token_to_ix['[r]']:
-                            new += 1
+                        if ts[s_idx, i]==chars.token_to_ix['[a]'] or ts[s_idx, i]==chars.token_to_ix['[v]'] or ts[s_idx, i]==chars.token_to_ix['[n]'] or ts[s_idx, i]==chars.token_to_ix['[r]']:
+                            n_of_t3 += 1
+                            if ts[s_idx, i+1]==ps[s_idx, i+1]:  
+                                new += 1
                 
-                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens_no_mark(fragments.ix_to_token, pf[:sl].tolist(), tuple([]))]
-                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens_no_mark(integration_labels.ix_to_token, pi[:sl].tolist(), preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}))]
+                frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, pf[:sl].tolist())]
+                inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens(integration_labels.ix_to_token, pi[:sl].tolist())]
                 senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl], sentence, pf[:sl].tolist(), frgs_pred)]
                 try:
                     decode(sentence, senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
@@ -446,14 +449,14 @@ if __name__ == '__main__':
                     print(sentence, senses_to_be_decoded, frgs_pred, inter_pred, sent_num)
                 sent_num += 1
 
-                n_of_t2 += ti.shape[0]-2
+                n_of_t2 += ti.shape[0]
         
         pred_file.close()
 
         print("Sense Accurancy: ", correct/n_of_t)
         print("Fragment Accurancy: ", correct_f/n_of_t2)
         print("intergration label Accurancy: ", correct_i/n_of_t2)
-        print("New: ", new)
+        print("Sense Number Accurancy: ", new/n_of_t3)
 
 #python counter.py -f1 prediction.clf -f2 dev.txt -prin -g clf_signature.yaml
 
