@@ -134,16 +134,18 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
                 sense_seq.append("["+match.group('pos')+"]")
                 chars.insert("["+match.group('number')+"]")
                 sense_seq.append("["+match.group('number')+"]")
-                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
                 sense_seq.append("-EOS-")
+                
+                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                
             
             elif "\"tom\"" in syms:
-                for ch in syms["\"tom\""]:
-                    if ch !="\"":
-                        chars.insert(ch)
-                        sense_seq.append(ch)
-                sense_seq.append("-EOS-")
-                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                # for ch in syms["\"tom\""]:
+                #     if ch !="\"":
+                #         chars.insert(ch)
+                #         sense_seq.append(ch)
+                sense_seq.append("[PAD]")
+                #content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
                 prpname_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
 
             else:

@@ -32,7 +32,8 @@ def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list, frg
         concept = []
         pos = ""
         ss_num = ""
-        all_senses =  [re.sub(r"\.s\.", ".a.", ss.name()) for ss in wn.synsets(word)]
+        #all_senses =  [re.sub(r"\.s\.", ".a.", ss.name()) for ss in wn.synsets(word)]
+        all_senses =  [ss.name() for ss in wn.synsets(word)]
         gold_senses = [ss for ss in all_senses if GOLD_SENSE_PATTERN.match(ss)]
         for c in sense_chars:
             if bool(re.match(POS_PATTERN, c)):
@@ -47,7 +48,7 @@ def get_ws_nltk(word:str, is_prpn: bool, is_content: bool, sense_chars:list, frg
             return {"work": ["".join(concept).lower()],"\""+ pos +".00"+"\"": ["\""+pos+"."+ss_num+"\""] }
 
         elif "".join(concept)!="" and (pos!="" or ss_num!=""):
-            matches = get_close_matches(prototype, gold_senses)
+            matches = get_close_matches(prototype, gold_senses, cutoff=0.1)
             if not matches:
                 return "[ILLFORM]"
             else:

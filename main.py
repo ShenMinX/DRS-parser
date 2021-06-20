@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 15
+    epochs = 5
 
     bert_embed_size = 768
 
@@ -437,7 +437,7 @@ if __name__ == '__main__':
                             n_of_t +=1
                         if ts[s_idx, i]==chars.token_to_ix['[a]'] or ts[s_idx, i]==chars.token_to_ix['[v]'] or ts[s_idx, i]==chars.token_to_ix['[n]'] or ts[s_idx, i]==chars.token_to_ix['[r]']:
                             n_of_t3 += 1
-                            if ts[s_idx, i+1]==ps[s_idx, i+1]:  
+                            if ts[s_idx, i+1]==ps[s_idx, i+1] and  ts[s_idx, i]==ps[s_idx, i]:  
                                 new += 1
                 
                 frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, pf[:sl].tolist())]
