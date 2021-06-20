@@ -50,14 +50,18 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 15
+    epochs = 5
 
     bert_embed_size = 768
 
     fine_tune  = True
 
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+
+    start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\train2.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -145,18 +149,23 @@ if __name__ == '__main__':
 
         e+=1
 
-
+    end.record()
+    torch.cuda.synchronize()
+    print("Train time: ",start.elapsed_time(end))  
 
     #eval:
 
     with torch.no_grad():
+
+        print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
+        print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
 
         correct_s = 0
         correct_f = 0
         correct_i = 0
         n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
+        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\test.txt', encoding = 'utf-8'))
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
