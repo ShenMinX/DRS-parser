@@ -45,54 +45,77 @@ def ixs_to_tokens(ix_to_token, ixs):
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
-def encode2(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
+def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None):
     words = dictionary()
     senses = dictionary()
     clauses = dictionary()
     integration_labels = dictionary()
 
+    content_frg_idx = set([])
+
     sents = []
     targets = []
+    sents2 = []
+    targets2 = []
     max_seq_len = 0
-    for i, (sentence, fragments, unaligned) in enumerate(
-            clf.read(data_file), start=1):
-        max_seq_len = max(max_seq_len, len(sentence))
-        #alignment.align(unaligned, fragments, i)
-        syms = tuple(symbols.guess_symbol(w, 'en') for w in sentence)
-        fragments = constants.add_constant_clauses(syms, fragments)
-        fragments = constants.replace_constants(fragments)
-        fragments = tuple(drs.sorted(f) for f in fragments)
-        fragments = address.debruijnify(fragments)
 
-        #sent = ["-BOS-"]
-        #target = [("-BOS-","-BOS-", "-BOS-")]
-        sent = []
-        target = []
+    files = [primary_file]
+    if optional_file != None:
+        files.append(optional_file)
+    for file_idx, file in enumerate(files):
+        data_file = open(file, encoding = 'utf-8')
+        for i, (sentence, fragments, unaligned) in enumerate(
+                clf.read(data_file), start=1):
+            if len(sentence)<=38:
+                max_seq_len = max(max_seq_len, len(sentence))
+                #alignment.align(unaligned, fragments, i)
+                syms = tuple(symbols.guess_symbol(w, 'en') for w in sentence)
+                fragments = constants.add_constant_clauses(syms, fragments)
+                fragments = constants.replace_constants(fragments)
+                fragments = tuple(drs.sorted(f) for f in fragments)
+                fragments = address.debruijnify(fragments)
 
-        for word, fragment in zip(sentence, fragments):
-            fragment, syms = mask.mask_fragment(fragment)
-            if encoding == 'ret-int':
-                fragment, integration_label = address.abstract(fragment)
-            else:
-                integration_label = {}
+                #sent = ["-BOS-"]
+                #target = [("-BOS-","-BOS-", "-BOS-")]
+                sent = []
+                target = []
 
-            words.insert(word)
-            senses.insert(dictlist_to_tuple(syms))
-            clauses.insert(tuple(fragment))
-            integration_labels.insert(dictlist_to_tuple(integration_label))
-            
-            sent.append(word)
-            target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
+                for word, fragment in zip(sentence, fragments):
+                    fragment, syms = mask.mask_fragment(fragment)
+                    if encoding == 'ret-int':
+                        fragment, integration_label = address.abstract(fragment)
+                    else:
+                        integration_label = {}
 
-        #sent.append("-EOS-")
-        #target.append(("-EOS-","-EOS-", "-EOS-"))
-        #if len(sent) <=38:
-        sents.append(sent)
-        targets.append(target)
+
+                    words.insert(word)
+                    senses.insert(dictlist_to_tuple(syms))
+                    clauses.insert(tuple(fragment))
+                    integration_labels.insert(dictlist_to_tuple(integration_label))
+
+                    if "work" in syms or "\"tom\"" in syms:
+                        content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                    
+                    
+                    sent.append(word)
+                    target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
+     
+
+                #sent.append("-EOS-")
+                #target.append(("-EOS-","-EOS-", "-EOS-"))
+                #if len(sent) <=38:
+                if file_idx == 0:
+                    sents.append(sent)
+                    targets.append(target)
+                elif file_idx == 1:
+                    sents2.append(sent)
+                    targets2.append(target)
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
-
-    return words, senses, clauses, integration_labels, sents, targets
+    if optional_file ==None:
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, None, None
+    else:
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, sents2, targets2
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):

@@ -44,10 +44,14 @@ def valid_tokenizing(sent, tokenizer, device):
 
 class Dataset(data.Dataset):
 
-    def __init__(self, sents, targets, word_to_ix, sense_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device): 
+    def __init__(self, sents, targets, word_to_ix, sense_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device, content_frg_idx, sents2 = None, targets2 = None): 
         'Initialization'
         self.sents = sents
+        self.sents2 = sents2
         self.targets = targets
+        self.targets2 = targets2
+        self.primary_size = len(sents)
+        self.content_frg_idx = content_frg_idx
         #self.word_to_ix = word_to_ix
         self.sense_to_ix = sense_to_ix
         self.fragment_to_ix = fragment_to_ix
@@ -57,12 +61,19 @@ class Dataset(data.Dataset):
 
     
     def __len__(self):
-        return len(self.sents)
+        if self.sents2 == None:
+            return len(self.sents)
+        else:
+            return len(self.sents) + len(self.sents2)
 
     def __getitem__(self, index):
         
-        sent = self.sents[index]
-        target = self.targets[index]
+        if index >= self.primary_size:
+            sent = self.sents2[index-self.primary_size]
+            target = self.targets2[index-self.primary_size]
+        else:
+            sent = self.sents[index]
+            target = self.targets[index]
 
         target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
                 self.sense_to_ix, [t[0] for t in target]), (

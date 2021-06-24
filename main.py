@@ -48,9 +48,11 @@ if __name__ == '__main__':
     #train
     hyper_batch_size = 24
 
+    num_warmup_steps = 0
+
     learning_rate = 0.0015
 
-    epochs = 5
+    epochs = 10
 
     bert_embed_size = 768
 
@@ -61,19 +63,31 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\train2.txt', encoding = 'utf-8'))
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\en\\gold\\train.txt', optional_file='Data\\en\\silver\\train.txt')
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
-    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, sents2, targets2)
 
+    dataset_size = len(train_dataset)
+    indices = list(range(dataset_size))
+    # primary_indices, optional_indices = indices[:train_dataset.primary_size], indices[train_dataset.primary_size:]
+    primary_indices, optional_indices = indices[:train_dataset.primary_size], indices
+
+    primary_sampler = data.sampler.SubsetRandomSampler(primary_indices)
+    if len(train_dataset)>train_dataset.primary_size:
+        optional_sampler = data.sampler.SubsetRandomSampler(optional_indices)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
     bert_model.config.output_hidden_states=True
 
-    train_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
+    
+    primary_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, sampler=primary_sampler, shuffle=False, collate_fn=my_collate)
+    loaders = [primary_loader]
+    if len(train_dataset)>train_dataset.primary_size:
+        optional_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, sampler=optional_sampler, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
 
@@ -90,8 +104,26 @@ if __name__ == '__main__':
     if fine_tune == True:
         bert_optimizer = AdamW(bert_model.parameters(), lr=1e-5)
 
+    # if len(train_dataset)>train_dataset.primary_size and epochs > 5:
+    #     num_iteration = train_dataset.primary_size*5 + len(train_dataset)*(epochs - 5)
+    # else:
+    #     num_iteration = len(train_dataset)*epochs
+
+    scheduler1 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_dataset)*5)
+    scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - 5))
+    if fine_tune == True:
+        scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*5)
+        scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - 5))
+
+    with torch.no_grad():
+        content_set = torch.LongTensor(list(train_dataset.content_frg_idx)).to(device)
+
     for e in range(epochs):
         total_loss = 0.0
+        if e >= 5 or len(train_dataset)==train_dataset.primary_size:
+            train_loader = primary_loader
+        else:
+            train_loader = optional_loader
 
         for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(train_loader):
 
@@ -125,6 +157,27 @@ if __name__ == '__main__':
 
             sense_out, frg_out, inter_out = tagging_model(padded_input)
 
+        ###masking non-content###
+
+            # frg_pred = torch.argmax(frg_out, 2)
+
+            # #tile_multiples = torch.cat((torch.ones(len(frg_pred.shape), dtype=torch.long).to(device),torch.LongTensor([content_set.shape[0]]).to(device)), 0)
+
+            # tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
+            # tile2 = padded_frg.unsqueeze(2).repeat([1]*len(padded_frg.shape)+[content_set.shape[0]])
+
+            # mask2 = torch.eq(tile, content_set).any(2) 
+            # mask3 = torch.eq(tile2, content_set).any(2) # remove BOS & EOS column
+
+
+
+            # assert padded_sense.shape[0] == mask2.shape[0]
+            # assert padded_sense.shape[1] == mask2.shape[1]
+            # assert mask2.sum()!=0
+
+
+        ###masking non-content###
+
             batch_loss = 0.0
 
             for i in range(padded_input.shape[1]): 
@@ -139,8 +192,16 @@ if __name__ == '__main__':
                 bert_optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
+            if e <5:
+                scheduler1.step()
+            else:
+                scheduler3.step()
             if fine_tune == True:
                 bert_optimizer.step()
+                if e <5:
+                    scheduler2.step()
+                else:
+                    scheduler4.step()
 
         with torch.no_grad():
             total_loss += float(batch_loss)
@@ -165,10 +226,10 @@ if __name__ == '__main__':
         correct_i = 0
         n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets = preprocess.encode2(data_file = open('Data\\en\\gold\\test.txt', encoding = 'utf-8'))
+        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\en\\gold\\dev.txt')
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
-        test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device)
+        test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
 
         test_loader = data.DataLoader(dataset=test_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
