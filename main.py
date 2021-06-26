@@ -52,7 +52,9 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 10
+    epochs = 5
+    middle_epoch = 5
+    assert middle_epoch<=epochs
 
     bert_embed_size = 768
 
@@ -85,11 +87,20 @@ if __name__ == '__main__':
 
     
     primary_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, sampler=primary_sampler, shuffle=False, collate_fn=my_collate)
-    loaders = [primary_loader]
     if len(train_dataset)>train_dataset.primary_size:
         optional_loader = data.DataLoader(dataset=train_dataset, batch_size=hyper_batch_size, sampler=optional_sampler, shuffle=False, collate_fn=my_collate)
 
     lossfunc = nn.CrossEntropyLoss()
+
+    weighted_label = integration_labels.token_to_ix[preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []})]
+    label_base = (torch.tensor(list(range(len(integration_labels.token_to_ix))))!=weighted_label).type(torch.float32).to(device)
+    loss_weight = torch.where(label_base==0, torch.tensor(0.5, dtype=torch.float32).to(device), label_base)
+    lossfunc2 = nn.CrossEntropyLoss(weight=loss_weight)
+
+    weighted_sense = senses.token_to_ix[preprocess.dictlist_to_tuple({})]
+    sense_base = (torch.tensor(list(range(len(senses.token_to_ix))))!=weighted_sense).type(torch.float32).to(device)
+    loss_weight_s = torch.where(sense_base==0, torch.tensor(1.0, dtype=torch.float32).to(device), sense_base)
+    lossfunc3 = nn.CrossEntropyLoss(weight=loss_weight_s)
 
     tagging_model = Linear_classifiers(
         embed_size = bert_embed_size, 
@@ -104,23 +115,19 @@ if __name__ == '__main__':
     if fine_tune == True:
         bert_optimizer = AdamW(bert_model.parameters(), lr=1e-5)
 
-    # if len(train_dataset)>train_dataset.primary_size and epochs > 5:
-    #     num_iteration = train_dataset.primary_size*5 + len(train_dataset)*(epochs - 5)
-    # else:
-    #     num_iteration = len(train_dataset)*epochs
 
-    scheduler1 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_dataset)*5)
-    scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - 5))
+    scheduler1 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
+    scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
     if fine_tune == True:
-        scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*5)
-        scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - 5))
+        scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
+        scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
 
     with torch.no_grad():
         content_set = torch.LongTensor(list(train_dataset.content_frg_idx)).to(device)
 
     for e in range(epochs):
         total_loss = 0.0
-        if e >= 5 or len(train_dataset)==train_dataset.primary_size:
+        if e >= middle_epoch or len(train_dataset)==train_dataset.primary_size or epochs==middle_epoch:
             train_loader = primary_loader
         else:
             train_loader = optional_loader
@@ -134,7 +141,7 @@ if __name__ == '__main__':
             else:
                 bert_outputs = bert_model(**bert_input)
                 
-            embeddings = bert_outputs.hidden_states[7]
+            embeddings = bert_outputs.hidden_states[12]
 
             mask = pad_sequence([torch.ones(len(s), dtype=torch.long).to(device) for s in sent], batch_first=True, padding_value=0)
 
@@ -157,33 +164,12 @@ if __name__ == '__main__':
 
             sense_out, frg_out, inter_out = tagging_model(padded_input)
 
-        ###masking non-content###
-
-            # frg_pred = torch.argmax(frg_out, 2)
-
-            # #tile_multiples = torch.cat((torch.ones(len(frg_pred.shape), dtype=torch.long).to(device),torch.LongTensor([content_set.shape[0]]).to(device)), 0)
-
-            # tile = frg_pred.unsqueeze(2).repeat([1]*len(frg_pred.shape)+[content_set.shape[0]])
-            # tile2 = padded_frg.unsqueeze(2).repeat([1]*len(padded_frg.shape)+[content_set.shape[0]])
-
-            # mask2 = torch.eq(tile, content_set).any(2) 
-            # mask3 = torch.eq(tile2, content_set).any(2) # remove BOS & EOS column
-
-
-
-            # assert padded_sense.shape[0] == mask2.shape[0]
-            # assert padded_sense.shape[1] == mask2.shape[1]
-            # assert mask2.sum()!=0
-
-
-        ###masking non-content###
-
             batch_loss = 0.0
 
             for i in range(padded_input.shape[1]): 
-                sense_loss = lossfunc(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
+                sense_loss = lossfunc3(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
                 frg_loss = lossfunc(frg_out[:,i,:]*mask[:, i].view(-1, 1), padded_frg[:,i]*mask[:, i])
-                inter_loss = lossfunc(inter_out[:,i,:]*mask[:, i].view(-1, 1), padded_inter[:,i]*mask[:, i])
+                inter_loss = lossfunc2(inter_out[:,i,:]*mask[:, i].view(-1, 1).view(-1,1), padded_inter[:,i]*mask[:, i])
 
                 batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
 
@@ -192,13 +178,13 @@ if __name__ == '__main__':
                 bert_optimizer.zero_grad()
             batch_loss.backward()
             optimizer.step()
-            if e <5:
+            if e <middle_epoch:
                 scheduler1.step()
             else:
                 scheduler3.step()
             if fine_tune == True:
                 bert_optimizer.step()
-                if e <5:
+                if e <middle_epoch:
                     scheduler2.step()
                 else:
                     scheduler4.step()
@@ -236,7 +222,7 @@ if __name__ == '__main__':
         for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.hidden_states[7]
+            embeddings = bert_outputs.hidden_states[12]
 
             # valid_embeds = [
             #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])

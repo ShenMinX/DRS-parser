@@ -122,6 +122,8 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
     retrieval_labels = set()
     integration_labels = []
     max_seq_len = 0
+    null_label = 0
+    all_label = 0
     for i, (sentence, fragments, unaligned) in enumerate(
             clf.read(data_file), start=1):
         max_seq_len = max(max_seq_len, len(sentence))
@@ -137,6 +139,9 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
             fragment, syms = mask.mask_fragment(fragment)
             if encoding == 'ret-int':
                 fragment, integration_label = address.abstract(fragment)
+                if integration_label == {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}:
+                    null_label+=1
+                all_label+=1
             else:
                 integration_label = {}
             integration_labels.append(integration_label)
@@ -160,6 +165,7 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
         integration_labels = set(json.dumps(l) for l in integration_labels)
         print(f'# of integration labels: {len(integration_labels)}', file=sys.stderr)
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
+    print("labels:" + str(null_label/all_label))
 
 
 
