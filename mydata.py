@@ -12,19 +12,22 @@ def _valid_wordpiece_indexes(sent, wp_sent):
     missing_chars = ""
     idx = 0
     assert wp_sent[-1]=="[SEP]"
+    try:
+        for wp_idx, wp in enumerate(wp_sent,0):
+            if not wp in marker:
+                if sent[idx].startswith(wp) and missing_chars == "":
+                    valid_idxs.append(wp_idx)
 
-    for wp_idx, wp in enumerate(wp_sent,0):
-        if not wp in marker:
-            if sent[idx].startswith(wp) and missing_chars == "":
-                valid_idxs.append(wp_idx)
-
-            if missing_chars == "":
-                missing_chars = sent[idx][len(wp.replace("##","")):]
-            else:
-                missing_chars = missing_chars[len(wp.replace("##","")):]
-        
-            if missing_chars == "":
-                idx+=1
+                if missing_chars == "":
+                    missing_chars = sent[idx][len(wp.replace("##","")):]
+                else:
+                    missing_chars = missing_chars[len(wp.replace("##","")):]
+            
+                if missing_chars == "":
+                    idx+=1
+    except IndexError:
+        print(sent)
+        print(wp_sent)
         
     return valid_idxs+[len(wp_sent)-1]
 

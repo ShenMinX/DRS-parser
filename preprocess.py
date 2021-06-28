@@ -45,7 +45,7 @@ def ixs_to_tokens(ix_to_token, ixs):
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
-def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None):
+def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None):
     words = dictionary()
     senses = dictionary()
     clauses = dictionary()
@@ -62,11 +62,13 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     files = [primary_file]
     if optional_file != None:
         files.append(optional_file)
+    if optional_file2 != None:
+        files.append(optional_file2)
     for file_idx, file in enumerate(files):
         data_file = open(file, encoding = 'utf-8')
         for i, (sentence, fragments, unaligned) in enumerate(
                 clf.read(data_file), start=1):
-            if len(sentence)<=38:
+            if len(sentence)<=38 and "政務顧問" not in sentence:
                 max_seq_len = max(max_seq_len, len(sentence))
                 #alignment.align(unaligned, fragments, i)
                 syms = tuple(symbols.guess_symbol(w, 'en') for w in sentence)
@@ -107,7 +109,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 if file_idx == 0:
                     sents.append(sent)
                     targets.append(target)
-                elif file_idx == 1:
+                elif file_idx > 0:
                     sents2.append(sent)
                     targets2.append(target)
 

@@ -46,13 +46,13 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    hyper_batch_size = 24
+    hyper_batch_size = 16
 
     num_warmup_steps = 0
 
     learning_rate = 0.0015
 
-    epochs = 5
+    epochs = 10
     middle_epoch = 5
     assert middle_epoch<=epochs
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\en\\gold\\train.txt', optional_file='Data\\en\\silver\\train.txt')
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\en\\gold\\train.txt', optional_file='Data\\en\\silver\\train.txt', optional_file2='Data\\en\\bronze\\train.txt')
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     weighted_sense = senses.token_to_ix[preprocess.dictlist_to_tuple({})]
     sense_base = (torch.tensor(list(range(len(senses.token_to_ix))))!=weighted_sense).type(torch.float32).to(device)
-    loss_weight_s = torch.where(sense_base==0, torch.tensor(1.0, dtype=torch.float32).to(device), sense_base)
+    loss_weight_s = torch.where(sense_base==0, torch.tensor(0.5, dtype=torch.float32).to(device), sense_base)
     lossfunc3 = nn.CrossEntropyLoss(weight=loss_weight_s)
 
     tagging_model = Linear_classifiers(
@@ -169,7 +169,7 @@ if __name__ == '__main__':
             for i in range(padded_input.shape[1]): 
                 sense_loss = lossfunc3(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
                 frg_loss = lossfunc(frg_out[:,i,:]*mask[:, i].view(-1, 1), padded_frg[:,i]*mask[:, i])
-                inter_loss = lossfunc2(inter_out[:,i,:]*mask[:, i].view(-1, 1).view(-1,1), padded_inter[:,i]*mask[:, i])
+                inter_loss = lossfunc2(inter_out[:,i,:]*mask[:, i].view(-1, 1), padded_inter[:,i]*mask[:, i])
 
                 batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
 
@@ -212,7 +212,7 @@ if __name__ == '__main__':
         correct_i = 0
         n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\en\\gold\\dev.txt')
+        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\en\\gold\\test.txt')
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
