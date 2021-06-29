@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 5
+    epochs = 1
 
     bert_embed_size = 768
 
@@ -110,6 +110,11 @@ if __name__ == '__main__':
     # validation_split = 0.2
     # shuffle_dataset = True
     # random_seed = 33
+
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+
+    start.record()
     
     words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
          target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train2.txt', encoding = 'utf-8'))
@@ -315,11 +320,19 @@ if __name__ == '__main__':
 
         e+=1
 
-
+    end.record()
+    torch.cuda.synchronize()
+    print("Train time: ",start.elapsed_time(end))    
 
     #eval:
 
     with torch.no_grad():
+
+        print("Bert Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
+        print("Tagging_Model Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
+        print("Encoder Parameters:",sum([param.nelement() for param in model_encoder.parameters()]))
+        print("Decoder Parameters:",sum([param.nelement() for param in model_decoder.parameters()]))
+
         correct_f = 0
         correct_i = 0
         n_of_t2 = 0
