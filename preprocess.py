@@ -9,6 +9,10 @@ import symbols
 import sys
 import re
 
+import nltk
+nltk.download('wordnet')
+from nltk.stem import WordNetLemmatizer
+
 class dictionary():
 
     def __init__(self):
@@ -177,9 +181,43 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
-    retrieval_labels = set()
-    integration_labels = []
+    words = dictionary()
+    chars = dictionary()
+    clauses = dictionary()
+    integration_labels = dictionary()
+
+    LEMMATIZER = WordNetLemmatizer()
+
+    content_frg_idx = set([])
+    prpname_frg_idx = set([])
+
+    SENSE_STRING_PATTERN = re.compile(r'"(?P<pos>[nvar])\.(?P<number>\d\d?)"')
+
+    sents = []
+    char_sents = []
+    
+    target_senses = []
+    targets = []
     max_seq_len = 0
+
+    number_of_char = 0
+    number_of_word = 0
+    n_of_n = 0
+    n_of_v = 0
+    n_of_a = 0
+    n_of_r = 0
+
+    n_of_ws_v = 0
+    n_of_ws_n = 0
+    n_of_ws_r = 0
+    n_of_ws_a = 0
+
+    adj = set()
+    noun = set()
+    verb = set()
+    adv = set()
+
+    max_sense_lens = []
     for i, (sentence, fragments, unaligned) in enumerate(
             clf.read(data_file), start=1):
         max_seq_len = max(max_seq_len, len(sentence))
@@ -189,37 +227,121 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
         fragments = constants.replace_constants(fragments)
         fragments = tuple(drs.sorted(f) for f in fragments)
         fragments = address.debruijnify(fragments)
-        column_count = 4
-        print('\t'.join(('-BOS-',) * column_count))
+
+        # sent = ["-BOS-"]
+        sent = []
+        char_sent = []
+        # target = [("-BOS-", "-BOS-")]
+        target = []
+        
+        
+        sense_seqence = []
+        max_sense_len = 0
+
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
             if encoding == 'ret-int':
                 fragment, integration_label = address.abstract(fragment)
             else:
                 integration_label = {}
-            integration_labels.append(integration_label)
-            retrieval_labels.add(fragment)
-            fields = [
-                word,
-                json.dumps(syms),
-                json.dumps(fragment),
-                json.dumps(integration_label)
-            ]
-            print(*fields, sep='\t')
-        print('\t'.join(('-EOS-',) * column_count))
-        print()
-    print(f'# of retrieval labels: {len(retrieval_labels)}', file=sys.stderr)
-    if encoding == 'ret-int':
-        maxxref = max(
-            len(v)
-            for l in integration_labels
-            for v in l.values()
-        )
-        integration_labels = set(json.dumps(l) for l in integration_labels)
-        print(f'# of integration labels: {len(integration_labels)}', file=sys.stderr)
+
+            words.insert(word)
+            clauses.insert(tuple(fragment))
+            integration_labels.insert(dictlist_to_tuple(integration_label))
+
+            word_seq = ["-BOS-"]
+
+            for ch in word:
+                chars.insert(ch)
+                word_seq.append(ch)
+                
+            word_seq.append("-EOS-")
+            char_sent.append(word_seq)
+            number_of_word+=1
+            
+
+            sense_seq = []
+
+            if "work" in syms:
+                for ch in syms["work"]:
+                    chars.insert(ch)
+                    sense_seq.append(ch)
+                if "\"v.00\"" in syms:
+                    pos_num = syms["\"v.00\""]
+                    n_of_v +=1
+                    lemma = LEMMATIZER.lemmatize(word, pos='v').lower()
+                    verb.add(syms["work"]+syms["\"v.00\""])
+                    if lemma==syms["work"]:
+                        n_of_ws_v+=1
+                elif "\"a.00\"" in syms:
+                    pos_num = syms["\"a.00\""]
+                    n_of_a+=1
+                    lemma = LEMMATIZER.lemmatize(word, pos='a').lower()
+                    adj.add(syms["work"]+syms["\"a.00\""])
+                    if lemma==syms["work"]:
+                        n_of_ws_a+=1
+                elif "\"r.00\"" in syms:
+                    pos_num = syms["\"r.00\""]
+                    n_of_r+=1
+                    lemma = LEMMATIZER.lemmatize(word, pos='r').lower()
+                    adv.add(syms["work"]+syms["\"r.00\""])
+                    if lemma==syms["work"]:
+                        n_of_ws_r+=1
+                elif "\"n.00\"" in syms:
+                    pos_num = syms["\"n.00\""]
+                    n_of_n+=1
+                    lemma = LEMMATIZER.lemmatize(word, pos='n').lower()
+                    noun.add(syms["work"]+syms["\"n.00\""])
+                    if lemma==syms["work"]:
+                        n_of_ws_n+=1
+                match = SENSE_STRING_PATTERN.search(pos_num)
+                chars.insert("["+match.group('pos')+"]")
+                sense_seq.append("["+match.group('pos')+"]")
+                chars.insert("["+match.group('number')+"]")
+                sense_seq.append("["+match.group('number')+"]")
+                sense_seq.append("-EOS-")
+                number_of_char+=1
+                
+                content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                
+            
+            elif "\"tom\"" in syms:
+                # for ch in syms["\"tom\""]:
+                #     if ch !="\"":
+                #         chars.insert(ch)
+                #         sense_seq.append(ch)
+                sense_seq.append("[PAD]")
+                #content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+                prpname_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+
+            else:
+                sense_seq.append("[PAD]")
+
+                   
+            sent.append(word)
+            target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
+            
+            sense_seqence.append(sense_seq)
+
+            
+            max_sense_len = max(len(sense_seq), max_sense_len)
+
+
+        # sent.append("-EOS-")
+        # target.append(("-EOS-", "-EOS-"))
+
+        sents.append(sent)
+        char_sents.append(char_sent)
+        targets.append(target)
+        target_senses.append(sense_seqence)
+        max_sense_lens.append(max_sense_len)
+
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
-
-
+    print(number_of_char/number_of_word)
+    print(f"n: {n_of_n}, v: {n_of_v}, a: {n_of_a}, r: {n_of_r} ")
+    print(f"n: {n_of_ws_n}, v: {n_of_ws_v}, a: {n_of_ws_a}, r: {n_of_ws_r} ")
+    print(f"n: {n_of_ws_n/n_of_n}, v: {n_of_ws_v/n_of_v}, a: {n_of_ws_a/n_of_a}, r: {n_of_ws_r/n_of_r} ")
+    print(f"n: {len(noun)}, v: {len(verb)}, a: {len(adj)}, r: {len(adv)} ")
 
 if __name__ == '__main__':
     encode()
