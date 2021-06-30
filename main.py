@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 5
+    epochs = 10
 
     bert_embed_size = 768
 
@@ -456,11 +456,11 @@ if __name__ == '__main__':
                     for i in range(max_sense_len):
                         if ps[s_idx, i]==tsn:
                             new+=1
+                            break
                 
                 frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, pf[:sl].tolist())]
                 inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens(integration_labels.ix_to_token, pi[:sl].tolist())]
-                # senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl], sentence, pf[:sl].tolist(), frgs_pred)]
-                senses_to_be_decoded = [get_ws_simple(word, preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist()), frg) for ss, word, frg in zip(ps[:sl], sentence, frgs_pred)]
+                senses_to_be_decoded = [get_ws_simple(word, preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist()[::-1]), frg) for ss, word, frg in zip(ps[:sl], sentence, frgs_pred)] #reverse sense
                 try:
                     decode(sentence, senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
                 except IndexError:

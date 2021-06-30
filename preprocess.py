@@ -110,17 +110,18 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
             clauses.insert(tuple(fragment))
             integration_labels.insert(dictlist_to_tuple(integration_label))
 
-            word_seq = ["-BOS-"]
+            word_seq = ["-EOS-"]
 
             for ch in word:
                 chars.insert(ch)
                 word_seq.append(ch)
-            word_seq.append("-EOS-")
-            char_sent.append(word_seq)
+            word_seq.append("-BOS-")
+            char_sent.append(word_seq[::-1])
 
             sense_seq = []
 
             if "work" in syms:
+                sense_seq.append("-EOS-")
                 for ch in syms["work"]:
                     chars.insert(ch)
                     sense_seq.append(ch)
@@ -137,7 +138,8 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
                 sense_seq.append("["+match.group('pos')+"]")
                 chars.insert("["+match.group('number')+"]")
                 sense_seq.append("["+match.group('number')+"]")
-                sense_seq.append("-EOS-")
+
+                
                 
                 content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
                 
@@ -158,7 +160,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
             sent.append(word)
             target.append((tuple(fragment), dictlist_to_tuple(integration_label)))
             
-            sense_seqence.append(sense_seq)
+            sense_seqence.append(sense_seq[::-1])
 
             
             max_sense_len = max(len(sense_seq), max_sense_len)
