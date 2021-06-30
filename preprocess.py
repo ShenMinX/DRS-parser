@@ -42,13 +42,12 @@ def ixs_to_tokens(ix_to_token, ixs):
         out.append(ix_to_token[w])
     return out
 
-def ixs_to_tokens_no_mark(ix_to_token, ixs, zero_token):
+def ixs_to_tokens_no_mark(ix_to_token, ixs):
     out = []
     for w in ixs:
-        if ix_to_token[w] != "[PAD]" and ix_to_token[w] != "-EOS-" and ix_to_token[w] != "-BOS-":
+        if ix_to_token[w] != "[PAD]" and ix_to_token[w] != "-EOS-" and ix_to_token[w] != "-BOS-" and ix_to_token[w] != "[UNK]" :
             out.append(ix_to_token[w])
-        else:
-            out.append(zero_token)
+
     return out
 
 def dictlist_to_tuple(dict):

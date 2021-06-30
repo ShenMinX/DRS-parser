@@ -14,7 +14,7 @@ import mydata
 import preprocess
 from models import Linear_classifiers, Encoder, Decoder
 from postprocess import decode, tuple_to_list, tuple_to_iterlabels
-from postproces_sense import get_ws_nltk, get_ws_simple
+from postproces_sense import get_ws_simple #,get_ws_nltk
 
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 1
+    epochs = 5
 
     bert_embed_size = 768
 
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     start.record()
     
     words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train2.txt', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
 
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
@@ -340,7 +340,7 @@ if __name__ == '__main__':
         new = 0
         sent_num = 1
         _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
-             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\test.txt', encoding = 'utf-8'))
+             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
         pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_set = mydata.Dataset(te_sents,te_char_sents,te_targets,te_target_senses, te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
@@ -442,20 +442,23 @@ if __name__ == '__main__':
                 
                     if ti[s_idx]==pi[s_idx] and pf[s_idx]!=chars.token_to_ix['-EOS-']:
                         correct_i +=1
-
+                    tsn = None
                     for i in range(max_sense_len):
-                        if ts[s_idx, i]==ps[s_idx, i] and ps[s_idx, i]!=chars.token_to_ix['[PAD]']:
+                        if ts[s_idx, i]==ps[s_idx, i] and ps[s_idx, i]!=chars.token_to_ix['[PAD]'] and ps[s_idx, i]!=chars.token_to_ix['-BOS-'] and ps[s_idx, i]!=chars.token_to_ix['-EOS-']:
                             correct +=1
-                        if ts[s_idx, i]!=chars.token_to_ix['[PAD]']:
+                        if ts[s_idx, i]!=chars.token_to_ix['[PAD]'] and ts[s_idx, i]!=chars.token_to_ix['-BOS-'] and ts[s_idx, i]!=chars.token_to_ix['-EOS-']:
                             n_of_t +=1
                         if ts[s_idx, i]==chars.token_to_ix['[a]'] or ts[s_idx, i]==chars.token_to_ix['[v]'] or ts[s_idx, i]==chars.token_to_ix['[n]'] or ts[s_idx, i]==chars.token_to_ix['[r]']:
                             n_of_t3 += 1
-                            if ts[s_idx, i+1]==ps[s_idx, i+1] and  ts[s_idx, i]==ps[s_idx, i]:  
-                                new += 1
+                            tsn = ts[s_idx, i-1]
+                    for i in range(max_sense_len):
+                        if ps[s_idx, i]==tsn:
+                            new+=1
                 
                 frgs_pred = [tuple_to_list(p_f) for p_f in preprocess.ixs_to_tokens(fragments.ix_to_token, pf[:sl].tolist())]
                 inter_pred = [tuple_to_iterlabels(p_i) for p_i in preprocess.ixs_to_tokens(integration_labels.ix_to_token, pi[:sl].tolist())]
-                senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl], sentence, pf[:sl].tolist(), frgs_pred)]
+                # senses_to_be_decoded = [get_ws_nltk(word, frg_idx in train_set.prpname_frg_idx, frg_idx in train_set.content_frg_idx,preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist(), ""), frg) for ss, word, frg_idx, frg in zip(ps[:sl], sentence, pf[:sl].tolist(), frgs_pred)]
+                senses_to_be_decoded = [get_ws_simple(word, preprocess.ixs_to_tokens_no_mark(chars.ix_to_token, ss.tolist()), frg) for ss, word, frg in zip(ps[:sl], sentence, frgs_pred)]
                 try:
                     decode(sentence, senses_to_be_decoded, frgs_pred, inter_pred, words.token_to_ix, sent_num, pred_file)
                 except IndexError:
