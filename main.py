@@ -119,6 +119,8 @@ if __name__ == '__main__':
     words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
          target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
 
+    print(len(chars.token_to_ix))
+
     tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
 
     train_set = mydata.Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
