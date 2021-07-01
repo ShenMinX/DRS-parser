@@ -141,7 +141,7 @@ if __name__ == '__main__':
             else:
                 bert_outputs = bert_model(**bert_input)
                 
-            embeddings = bert_outputs.hidden_states[12]
+            embeddings = bert_outputs.hidden_states[7]
 
             mask = pad_sequence([torch.ones(len(s), dtype=torch.long).to(device) for s in sent], batch_first=True, padding_value=0)
 
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.hidden_states[12]
+            embeddings = bert_outputs.hidden_states[7]
 
             # valid_embeds = [
             #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
