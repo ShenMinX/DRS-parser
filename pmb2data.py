@@ -5,6 +5,8 @@ import random
 from time import sleep
 from tqdm import tqdm
 
+language = "it"
+
 def copy_data(origin:list, dst:str):
     i = 0
     #file_numbers = sum([len(list(walk(f))) for f in origin])
@@ -40,7 +42,7 @@ def merge_splite(origin:list, dst1:str, dst2:str, ratio:float, max_sen_len:int):
     for f in origin:
         for dirpath, _, filenames in walk(f):
             for name in filenames:
-                if name == "en.drs.clf":
+                if name == language+".drs.clf":
                     file_list.append(os.path.join(dirpath, name))
     
     t = tqdm(total=len(file_list))
@@ -68,9 +70,9 @@ def merge_splite(origin:list, dst1:str, dst2:str, ratio:float, max_sen_len:int):
     t.close()
 
 
-gold = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\en\\gold"
-silver = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\en\\silver"
-bronze = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\en\\bronze"
+gold = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\"+language+"\\gold"
+silver = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\"+language+"\\silver"
+bronze = "A:\\NNL\\DRS\\pmb-3.0.0\\data\\"+language+"\\bronze"
 
 copyg = "A:\\NNL\\DRS\\copydata\\gold\\"
 copys = "A:\\NNL\\DRS\\copydata\\silver\\"
@@ -82,11 +84,11 @@ merges = "A:\\NNL\\DRS\\mergedata\\silver\\silver.clf"
 mergeb = "A:\\NNL\\DRS\\mergedata\\bronze\\bronze.clf"
 mergegs = "A:\\NNL\\DRS\\mergedata\\gold_silver.clf"
 
-ms_gold = "A:\\NNL\\DRS-parser\\Data\\ms_data\\gold\\"
-ms_sliver = "A:\\NNL\\DRS-parser\\Data\\ms_data\\silver\\"
-ms_bronze = "A:\\NNL\\DRS-parser\\Data\\ms_data\\bronze\\"
-ms_gold_silver = "A:\\NNL\\DRS-parser\\Data\\ms_data\\gold_silver\\"
+ms_gold = "A:\\NNL\\DRS-parser\\Data\\"+language+"\\gold\\"
+ms_sliver = "A:\\NNL\\DRS-parser\\Data\\"+language+"\\silver\\"
+ms_bronze = "A:\\NNL\\DRS-parser\\Data\\"+language+"\\bronze\\"
+ms_gold_silver = "A:\\NNL\\DRS-parser\\Data\\"+language+"\\gold_silver\\"
 
 #copy_data([gold, silver], copygs)
 #merge_data([gold, silver], mergegs)
-merge_splite([gold, silver], ms_gold_silver+"train.clf", ms_gold_silver+"test.clf", 0.8, 37)
+merge_splite([bronze], ms_bronze+"train.clf", ms_bronze+"test.clf", 1, 37)

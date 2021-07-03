@@ -5,45 +5,45 @@ import re
 
 from tokenizers import BertWordPieceTokenizer
 
-def _valid_wordpiece_indexes(sent, wp_sent): 
-    
-    marker = ["[CLS]", "[SEP]"]
-    valid_idxs = []
-    missing_chars = ""
-    idx = 0
-    assert wp_sent[-1]=="[SEP]"
-    try:
-        for wp_idx, wp in enumerate(wp_sent,0):
-            if not wp in marker:
-                if sent[idx].startswith(wp) and missing_chars == "":
-                    valid_idxs.append(wp_idx)
 
-                if missing_chars == "":
-                    missing_chars = sent[idx][len(wp.replace("##","")):]
-                else:
-                    missing_chars = missing_chars[len(wp.replace("##","")):]
-            
-                if missing_chars == "":
-                    idx+=1
-    except IndexError:
-        print(sent)
-        print(wp_sent)
+def _valid_wordpiece_indexes(wp_idx): 
+    
+    valid_idxs = []
+    ref = -1
+    for i, idx in enumerate(wp_idx[1:-1]):
+        if ref!=idx:
+            valid_idxs.append(i+1)
+            ref = idx
+
         
-    return valid_idxs+[len(wp_sent)-1]
+    return valid_idxs+[len(wp_idx)-1]
+
+
 
 def valid_tokenizing(sent, tokenizer, device):
 
-    tokenized_sequence = tokenizer.encode(" ".join(sent))
-    valid_idx = []
+    tokenized_sequence = tokenizer(" ".join(sent), add_special_tokens=True, return_attention_mask=True, return_token_type_ids=True)
 
-    input_ids = torch.LongTensor(tokenized_sequence.ids).to(device)
-    token_type_ids = torch.LongTensor(tokenized_sequence.type_ids).to(device)
-    attention_mask = torch.LongTensor(tokenized_sequence.attention_mask).to(device)
+    input_ids = torch.LongTensor(tokenized_sequence['input_ids']).to(device)
+    token_type_ids = torch.LongTensor(tokenized_sequence['token_type_ids']).to(device)
+    attention_mask = torch.LongTensor(tokenized_sequence['attention_mask']).to(device)
 
-    valid_idx = _valid_wordpiece_indexes(sent, tokenized_sequence.tokens)
+    valid_idx = _valid_wordpiece_indexes(tokenized_sequence.words())
     valid_indices = torch.LongTensor(valid_idx).to(device)
 
+
+    try:
+        assert len(sent)+1 == valid_indices.shape[0]
+    except AssertionError:
+        print(valid_indices)
+        print(len(sent)+1)
+        print(tokenized_sequence.words())
+        print(" ".join(sent))
+        print(tokenizer.tokenize(" ".join(sent)))
+
+
     return input_ids, token_type_ids, attention_mask, valid_indices
+    
 
 class Dataset(data.Dataset):
 

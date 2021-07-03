@@ -7,7 +7,7 @@ import re
 import numpy as np
 
 from tokenizers import BertWordPieceTokenizer
-from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
+from transformers import BertModel, AdamW, get_linear_schedule_with_warmup, AutoModel, AutoTokenizer
 
 import mydata
 import preprocess
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 10
+    epochs = 5
     middle_epoch = 5
     assert middle_epoch<=epochs
 
@@ -65,9 +65,12 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\en\\gold\\train.txt', optional_file='Data\\en\\silver\\train.txt', optional_file2='Data\\en\\bronze\\train.txt')
+    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\de\\gold\\train.clf', optional_file='Data\\de\\silver\\train.clf', optional_file2='Data\\de\\bronze\\train.clf')
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\de\\gold\\train.clf', optional_file=None, optional_file2=None)
 
-    tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+    model_name = "dbmdz/bert-base-german-cased"
+    #tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, sents2, targets2)
 
@@ -82,7 +85,8 @@ if __name__ == '__main__':
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
-    bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    bert_model = AutoModel.from_pretrained(model_name).to(device)
+    #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
     bert_model.config.output_hidden_states=True
 
     
@@ -212,8 +216,8 @@ if __name__ == '__main__':
         correct_i = 0
         n_of_t = 0
         count = 1
-        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\en\\gold\\test.txt')
-        pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
+        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\de\\gold\\test.clf')
+        pred_file = open('Data\\de\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
 
