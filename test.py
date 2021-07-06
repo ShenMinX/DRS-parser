@@ -1,80 +1,72 @@
 import torch
 import transformers
 from tokenizers import BertWordPieceTokenizer
-from transformers import BertTokenizer, BertModel, BertTokenizerFast
+from transformers import BertTokenizer, BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
 
 
-def valid_tokenizing(sent_batch, tokenizer, max_length = 35):
+
+def _valid_wordpiece_indexes(sent, wp_sent): 
     
-    markers = ["[CLS]", "[SEP]"]
+    marker = ["[CLS]", "[SEP]"]
+    valid_idxs = []
+    missing_chars = ""
+    idx = 0
+    assert wp_sent[-1]=="[SEP]"
+    try:
+        for wp_idx, wp in enumerate(wp_sent,0):
+            if not wp in marker:
+                if sent[idx].startswith(wp) and missing_chars == "":
+                    valid_idxs.append(wp_idx)
 
-    valid_indices = []
-    input_ids = []
-    attention_mask = []
-
-    for sent in sent_batch:
-        tokenized_sequence = tokenizer.encode(" ".join(sent))
-        valid_idx = []
-
-        input_ids.append(torch.LongTensor(tokenized_sequence.ids))
-        attention_mask.append(torch.LongTensor(tokenized_sequence.attention_mask))
-
-        for token in tokenized_sequence.tokens:
-            if token in markers or re.search("^##.*$", token):
-                valid_idx.append(0)
-            else:
-                valid_idx.append(1)
+                if missing_chars == "":
+                    missing_chars = sent[idx][len(wp.replace("##","")):]
+                else:
+                    missing_chars = missing_chars[len(wp.replace("##","")):]
+            
+                if missing_chars == "":
+                    idx+=1
+    except IndexError:
+        print(sent)
+        print(wp_sent)
         
-        valid_indices.append(torch.LongTensor(valid_idx))
+    return valid_idxs+[len(wp_sent)-1]
 
-    valid_indices = pad_sequence(valid_indices, batch_first=True, padding_value=0.0)
-    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
-    token_type_ids = torch.zeros(input_ids.shape, dtype = torch.long)
-    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
+def valid_tokenizing(sent, tokenizer, device):
 
-    bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
+    tokenized_sequence = tokenizer.encode(" ".join(sent))
+    valid_idx = []
 
-    return bert_input, valid_indices
-#tokenizer = torch.hub.load('huggingface/pytorch-transformers', 'tokenizer', 'bert-base-cased')
+    input_ids = torch.LongTensor(tokenized_sequence.ids).to(device)
+    token_type_ids = torch.LongTensor(tokenized_sequence.type_ids).to(device)
+    attention_mask = torch.LongTensor(tokenized_sequence.attention_mask).to(device)
 
-# text_1 = "Who was Jim Henson ?"
+    valid_idx = _valid_wordpiece_indexes(sent, tokenized_sequence.tokens)
+    valid_indices = torch.LongTensor(valid_idx).to(device)
 
-# # Tokenized input with special tokens around it (for BERT: [CLS] at the beginning and [SEP] at the end)
-# indexed_tokens = tokenizer.encode(text_1, add_special_tokens=True)
-# print(indexed_tokens)
+    return input_ids, token_type_ids, attention_mask, valid_indices
 
-# # Define sentence A and B indices associated to 1st and 2nd sentences (see paper)
-# segments_ids = [0]*len(indexed_tokens)
+if __name__ == '__main__':
 
-# # Convert inputs to PyTorch tensors
-# segments_tensors = torch.tensor([segments_ids])
-# tokens_tensor = torch.tensor([indexed_tokens])
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-##model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
+    model_name = "dbmdz/bert-base-german-cased"
+    #tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    #tokenizer = BertWordPieceTokenizer("Data\\de\\bert-base-german-dbmdz-cased-vocab.txt", lowercase=False)
+    sent = ['Ich', 'hole', 'dich', 'um', '2.30', 'Uhr', 'ceegtebvtv','ab', '.']
+    tokenized_sequence = tokenizer(" ".join(sent), add_special_tokens=True, return_attention_mask=True, return_token_type_ids=True)
+    wp = tokenizer.tokenize(" ".join(sent))
 
-# with torch.no_grad():
-#     encoded_layers, _ = model(tokens_tensor, token_type_ids=segments_tensors)
+    idx = _valid_wordpiece_indexes(sent, ["[CLS]"]+wp+["[SEP]"])
+    print(wp)
+    print(idx)
 
-# print(encoded_layers)
-
-
-batch_sentences = ["hello, i'm Testing this efauenufefu","hello, i'm this efauenufefu"]
-
-tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-tokenizer2 = BertTokenizerFast("bert-base-cased-vocab.txt", wordpieces_prefix = "##")
-model = BertModel.from_pretrained('bert-base-cased')
-tokenizer3 = BertWordPieceTokenizer("bert-base-cased-vocab.txt")
-tokenized_sequence = tokenizer3.encode("hello, i'm te~sting this efauenufefu")
-
-inputs = tokenizer(batch_sentences, return_tensors="pt", padding=True, truncation=True, max_length = 15)#, padding=True,truncation=True, max_length = 10 )
-
-for i in range(len(batch_sentences)):
-    #decoded = tokenized_sequence.decode(inputs["input_ids"][i],clean_up_tokenization_spaces = False)
-    print(tokenized_sequence)
-
-input2 = {'input_ids':torch.LongTensor(tokenized_sequence.ids).view(1, -1), 'token_type_ids':torch.LongTensor(tokenized_sequence.type_ids).view(1, -1), 'attention_mask':torch.LongTensor(tokenized_sequence.attention_mask).view(1, -1) }
+    bert_model = AutoModel.from_pretrained(model_name).to(device)
+    #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    bert_model.config.output_hidden_states=True
 
 
-outputs = model(**inputs)
-
-last_hidden_states = outputs.last_hidden_state
+    # input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, tokenizer, device)
+    # print(input_ids)
+    # print(valid_indices)
+    # print(len(sent))

@@ -46,13 +46,15 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
+    lang = "nl"
+
     hyper_batch_size = 16
 
     num_warmup_steps = 0
 
     learning_rate = 0.0015
 
-    epochs = 5
+    epochs = 10
     middle_epoch = 5
     assert middle_epoch<=epochs
 
@@ -65,11 +67,12 @@ if __name__ == '__main__':
 
     start.record()
     
-    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\de\\gold\\train.clf', optional_file='Data\\de\\silver\\train.clf', optional_file2='Data\\de\\bronze\\train.clf')
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\de\\gold\\train.clf', optional_file=None, optional_file2=None)
-
-    model_name = "dbmdz/bert-base-german-cased"
-    #tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None)#'Data\\'+lang+'\\bronze\\train.txt')
+    #nl: "Geotrend/bert-base-nl-cased"
+    #de: "dbmdz/bert-base-german-cased"
+    #it: "dbmdz/bert-base-italian-cased"
+    model_name = "Geotrend/bert-base-nl-cased"
+    
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, sents2, targets2)
@@ -205,83 +208,86 @@ if __name__ == '__main__':
     print("Train time: ",start.elapsed_time(end))  
 
     #eval:
+    in_files = ['Data\\'+lang+'\\gold\\dev.txt', 'Data\\'+lang+'\\gold\\test.txt']
+    out_files = ['Data\\'+lang+'\\gold\\prediction_dev.clf', 'Data\\'+lang+'\\gold\\prediction_test.clf']
+    for in_f, out_f in zip(in_files, out_files):
+        with torch.no_grad():
 
-    with torch.no_grad():
+            print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
+            print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
 
-        print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
-        print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
+            correct_s = 0
+            correct_f = 0
+            correct_i = 0
+            n_of_t = 0
+            count = 1
+            _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = in_f)
+            pred_file = open( out_f, 'w', encoding="utf-8")
 
-        correct_s = 0
-        correct_f = 0
-        correct_i = 0
-        n_of_t = 0
-        count = 1
-        _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = 'Data\\de\\gold\\test.clf')
-        pred_file = open('Data\\de\\gold\\prediction.clf', 'w', encoding="utf-8")
+            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
 
-        test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
+            test_loader = data.DataLoader(dataset=test_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
-        test_loader = data.DataLoader(dataset=test_dataset, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
+            for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(test_loader):
 
-        for idx, (bert_input, valid_indices, target_s, target_f, target_i, sent) in enumerate(test_loader):
+                bert_outputs = bert_model(**bert_input)
+                embeddings = bert_outputs.hidden_states[7]
 
-            bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.hidden_states[7]
+                # valid_embeds = [
+                #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+                #     for embeds, valid in zip(embeddings, valid_indices)]
 
-            # valid_embeds = [
-            #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
-            #     for embeds, valid in zip(embeddings, valid_indices)]
+                valid_embeds = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings, valid_indices)]
 
-            valid_embeds = [
-                average_word_emb(embeds, valid)
-                for embeds, valid in zip(embeddings, valid_indices)]
+                batch_size = len(valid_embeds)
 
-            batch_size = len(valid_embeds)
+                seq_len = [len(s) for s in sent]
 
-            seq_len = [len(s) for s in sent]
+                padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+                padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
+                padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
+                padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
-            padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
-            padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
-            padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
-            padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
+                sense_out, frg_out, inter_out = tagging_model(padded_input)
 
-            sense_out, frg_out, inter_out = tagging_model(padded_input)
+                sense_max = torch.argmax(sense_out, 2)
+                frg_max = torch.argmax(frg_out, 2)
+                inter_max = torch.argmax(inter_out, 2)
 
-            sense_max = torch.argmax(sense_out, 2)
-            frg_max = torch.argmax(frg_out, 2)
-            inter_max = torch.argmax(inter_out, 2)
+                unpad_sense = [sense_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+                unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+                unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
 
-            unpad_sense = [sense_max[i,:l].tolist() for i, l in enumerate(seq_len)]
-            unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
-            unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+                sense_pred = [preprocess.ixs_to_tokens(senses.ix_to_token, seq) for seq in unpad_sense]
+                frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
+                inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
 
-            sense_pred = [preprocess.ixs_to_tokens(senses.ix_to_token, seq) for seq in unpad_sense]
-            frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
-            inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
+                for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
+                    for s_idx in range(len(ps)):
+                        if ts[s_idx]==ps[s_idx]:
+                            correct_s +=1
+                        if tf[s_idx]==pf[s_idx]:
+                            correct_f +=1
+                        if ti[s_idx]==pi[s_idx]:
+                            correct_i +=1
+                    n_of_t += ts.shape[0]
 
-            for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
-                for s_idx in range(len(ps)):
-                    if ts[s_idx]==ps[s_idx]:
-                        correct_s +=1
-                    if tf[s_idx]==pf[s_idx]:
-                        correct_f +=1
-                    if ti[s_idx]==pi[s_idx]:
-                        correct_i +=1
-                n_of_t += ts.shape[0]
+        
 
-     
+            #python counter.py -f1 prediction_dev.clf -f2 dev.txt -prin -g clf_signature.yaml
+            #python counter.py -f1 prediction_test.clf -f2 test.txt -prin -g clf_signature.yaml
 
-        #python counter.py -f1 prediction.clf -f2 dev.txt -prin -g clf_signature.yaml
+                for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
+                    #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
+                    decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file)
+                    count+=1
+            pred_file.close()
 
-            for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
-                #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
-                decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file)
-                count+=1
-        pred_file.close()
-
-        print("Sense Accurancy: ", correct_s/n_of_t)
-        print("Fragment Accurancy: ", correct_f/n_of_t)
-        print("intergration label Accurancy: ", correct_i/n_of_t)
+            print("Sense Accurancy: ", correct_s/n_of_t)
+            print("Fragment Accurancy: ", correct_f/n_of_t)
+            print("intergration label Accurancy: ", correct_i/n_of_t)
 
 
 

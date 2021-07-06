@@ -71,7 +71,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
             if len(sentence)<=38 and "政務顧問" not in sentence:
                 max_seq_len = max(max_seq_len, len(sentence))
                 #alignment.align(unaligned, fragments, i)
-                syms = tuple(symbols.guess_symbol(w, 'en') for w in sentence)
+                syms = tuple(symbols.guess_symbol(w, 'de') for w in sentence)
                 fragments = constants.add_constant_clauses(syms, fragments)
                 fragments = constants.replace_constants(fragments)
                 fragments = tuple(drs.sorted(f) for f in fragments)
