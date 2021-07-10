@@ -54,9 +54,10 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 10
+    epochs = 5
     middle_epoch = 5
-    assert middle_epoch<=epochs
+    if epochs < middle_epoch:
+        middle_epoch = epochs 
 
     bert_embed_size = 768
 
@@ -67,7 +68,7 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None)#'Data\\'+lang+'\\bronze\\train.txt')
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)#'Data\\'+lang+'\\bronze\\train.txt')
     #nl: "Geotrend/bert-base-nl-cased"
     #de: "dbmdz/bert-base-german-cased"
     #it: "dbmdz/bert-base-italian-cased"
@@ -221,7 +222,7 @@ if __name__ == '__main__':
             correct_i = 0
             n_of_t = 0
             count = 1
-            _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = in_f)
+            _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = in_f, language = lang)
             pred_file = open( out_f, 'w', encoding="utf-8")
 
             test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)

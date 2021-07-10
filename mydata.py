@@ -46,14 +46,14 @@ def valid_tokenizing(sent, tokenizer, device):
     valid_indices = torch.LongTensor(valid_idx).to(device)
 
 
-    # try:
-    #     assert len(sent)+1 == valid_indices.shape[0]
-    # except AssertionError:
-    #     print(valid_indices)
-    #     print(len(sent)+1)
-    #     print(tokenized_sequence.words())
-    #     print(" ".join(sent))
-    #     print(tokenizer.tokenize(" ".join(sent)))
+    try:
+        assert len(sent)+1 == valid_indices.shape[0]
+    except AssertionError:
+        print(valid_indices)
+        print(len(sent)+1)
+        print(tokenized_sequence.words())
+        print(" ".join(sent))
+        print(tokenizer.tokenize(" ".join(sent)))
 
 
     return input_ids, token_type_ids, attention_mask, valid_indices

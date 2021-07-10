@@ -45,7 +45,7 @@ def ixs_to_tokens(ix_to_token, ixs):
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
 
-def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None):
+def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
     words = dictionary()
     senses = dictionary()
     clauses = dictionary()
@@ -71,7 +71,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
             if len(sentence)<=38 and "政務顧問" not in sentence:
                 max_seq_len = max(max_seq_len, len(sentence))
                 #alignment.align(unaligned, fragments, i)
-                syms = tuple(symbols.guess_symbol(w, 'de') for w in sentence)
+                syms = tuple(symbols.guess_symbol(w, language) for w in sentence)
                 fragments = constants.add_constant_clauses(syms, fragments)
                 fragments = constants.replace_constants(fragments)
                 fragments = tuple(drs.sorted(f) for f in fragments)
