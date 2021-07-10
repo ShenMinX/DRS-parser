@@ -46,7 +46,7 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    lang = "nl"
+    lang = "en"
 
     hyper_batch_size = 16
 
@@ -68,11 +68,15 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)#'Data\\'+lang+'\\bronze\\train.txt')
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
+    # for it, nl:
+    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
+    
+    #en: "bert-base-cased"
     #nl: "Geotrend/bert-base-nl-cased"
     #de: "dbmdz/bert-base-german-cased"
     #it: "dbmdz/bert-base-italian-cased"
-    model_name = "Geotrend/bert-base-nl-cased"
+    model_name = 'bert-base-cased'
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
