@@ -8,6 +8,7 @@ from tokenizers import BertWordPieceTokenizer
 
 def _valid_wordpiece_indexes(sent, wp_sent): 
     
+    # marker = ["[CLS]", "[SEP]", "[UNK]"]
     marker = ["[CLS]", "[SEP]"]
     valid_idxs = []
     missing_chars = ""
@@ -26,6 +27,10 @@ def _valid_wordpiece_indexes(sent, wp_sent):
             
                 if missing_chars == "":
                     idx+=1
+            # elif wp == "[UNK]":
+            #     valid_idxs.append(wp_idx)
+            #     idx+=1
+
     except IndexError:
         print(sent)
         print(wp_sent)

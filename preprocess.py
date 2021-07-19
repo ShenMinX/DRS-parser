@@ -89,17 +89,20 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                     else:
                         integration_label = {}
 
+                    word = word.replace(u'\xad',"") #replace invisible unicode character "soft hyphen" 
+                    word = word.replace(u'\u200b',"") #replace invisible unicode character "zero width space" 
+                    word = word.replace(u'\uff1f', '?') #replace "fullwidth question mark"
 
-                    words.insert(word)
+                    
                     senses.insert(dictlist_to_tuple(syms))
                     clauses.insert(tuple(fragment))
                     integration_labels.insert(dictlist_to_tuple(integration_label))
 
                     if "work" in syms or "\"tom\"" in syms:
                         content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
-                    
-                    
-                    sent.append(word)
+                    if word != "": #exclude soft hyphen
+                        words.insert(word)
+                        sent.append(word)
                     target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
      
 

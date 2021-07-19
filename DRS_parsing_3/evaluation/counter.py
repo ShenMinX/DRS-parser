@@ -821,13 +821,13 @@ def main(args):
 	# We might also want to save all individual F-scores, usually for the sake of doing statistics. We print them to a file here
 	if args.ms_file:
 		with open(args.ms_file, 'w') as out_f:
-			for items in all_results:
+			for indx,items in enumerate(all_results, 1):
 				_, _, f_score = compute_f(items[0], items[1], items[2], args.significant, False)
 				if args.all_idv:
 					print_line = " ".join([str(x) for x in [items[0], items[1], items[2]]])
-					out_f.write(print_line + '\n')
+					out_f.write(str(indx)+"\t"+print_line + '\n')
 				else:
-					out_f.write(str(f_score) + '\n')
+					out_f.write(str(indx)+"\t"+str(f_score) + '\n')
 		out_f.close()
 
 	# We might want to output statistics about individual types of clauses

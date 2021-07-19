@@ -16,12 +16,47 @@ from models import Linear_classifiers
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-def my_collate(batch):
+# def my_collate(batch):
 
-    input_ids = [item[0] for item in batch]
-    token_type_ids = [item[1] for item in batch]
-    attention_mask = [item[2] for item in batch]
-    valid_indices = [item[3] for item in batch]
+#     input_ids = [item[0] for item in batch]
+#     token_type_ids = [item[1] for item in batch]
+#     attention_mask = [item[2] for item in batch]
+#     valid_indices = [item[3] for item in batch]
+                
+#     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
+#     token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
+#     attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
+
+#     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
+
+#     target_s = [torch.LongTensor(item[4]).to(device) for item in batch]
+#     target_f = [torch.LongTensor(item[5]).to(device) for item in batch]
+#     target_i = [torch.LongTensor(item[6]).to(device) for item in batch]
+#     sent = [item[7] for item in batch]
+
+#     return bert_input, valid_indices, target_s, target_f, target_i, sent
+
+def my_collate(batch): #version that excludes unaligned sentences
+
+    input_ids = []
+    token_type_ids = []
+    attention_mask = []
+    valid_indices = []
+    target_s = []
+    target_f = []
+    target_i = []
+    sent = []
+
+    for item in batch: 
+        if len(item[3])==len(item[7])+1:
+            input_ids.append(item[0])
+            token_type_ids.append(item[1])
+            attention_mask.append(item[2])
+            valid_indices.append(item[3])
+            target_s.append(torch.LongTensor(item[4]).to(device))
+            target_f.append(torch.LongTensor(item[5]).to(device))
+            target_i.append(torch.LongTensor(item[6]).to(device))
+            sent.append(item[7])
                 
     input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
     token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
@@ -29,10 +64,7 @@ def my_collate(batch):
 
     bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
 
-    target_s = [torch.LongTensor(item[4]).to(device) for item in batch]
-    target_f = [torch.LongTensor(item[5]).to(device) for item in batch]
-    target_i = [torch.LongTensor(item[6]).to(device) for item in batch]
-    sent = [item[7] for item in batch]
+
 
     return bert_input, valid_indices, target_s, target_f, target_i, sent
 
@@ -54,7 +86,7 @@ if __name__ == '__main__':
 
     learning_rate = 0.0015
 
-    epochs = 5
+    epochs = 10
     middle_epoch = 5
     if epochs < middle_epoch:
         middle_epoch = epochs 
@@ -281,8 +313,8 @@ if __name__ == '__main__':
 
         
 
-            #python counter.py -f1 prediction_dev.clf -f2 dev.txt -prin -g clf_signature.yaml
-            #python counter.py -f1 prediction_test.clf -f2 test.txt -prin -g clf_signature.yaml
+            #python counter.py -f1 prediction_dev.clf -f2 dev.txt -prin -ms_file result_dev.txt -g clf_signature.yaml
+            #python counter.py -f1 prediction_test.clf -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
                     #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)

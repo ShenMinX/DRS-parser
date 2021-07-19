@@ -7,7 +7,7 @@ from transformers import BertTokenizer, BertModel, BertTokenizerFast, AutoTokeni
 
 def _valid_wordpiece_indexes(sent, wp_sent): 
     
-    marker = ["[CLS]", "[SEP]"]
+    marker = ["[CLS]", "[SEP]", "[UNK]"]
     valid_idxs = []
     missing_chars = ""
     idx = 0
@@ -24,6 +24,10 @@ def _valid_wordpiece_indexes(sent, wp_sent):
                     missing_chars = missing_chars[len(wp.replace("##","")):]
             
                 if missing_chars == "":
+                    idx+=1
+            elif wp =="[UNK]":
+                if missing_chars =="":
+                    valid_idxs.append(wp_idx)
                     idx+=1
     except IndexError:
         print(sent)
@@ -49,21 +53,31 @@ if __name__ == '__main__':
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    model_name = "dbmdz/bert-base-german-cased"
+    model_name = "bert-base-cased"
     #tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     #tokenizer = BertWordPieceTokenizer("Data\\de\\bert-base-german-dbmdz-cased-vocab.txt", lowercase=False)
-    sent = ['Ich', 'hole', 'dich', 'um', '2.30', 'Uhr', 'ceegtebvtv','ab', '.']
+    
+    sent = '" ẽ " is a ẽ.ẽ side ẽẽ letter in ẽ ẽ the the？ ẽ Guarani alphabet？'.split(" ")
+    trag = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 22]
+
     tokenized_sequence = tokenizer(" ".join(sent), add_special_tokens=True, return_attention_mask=True, return_token_type_ids=True)
-    wp = tokenizer.tokenize(" ".join(sent))
+    wp = ["[CLS]"]+tokenizer.tokenize(" ".join(sent))+["[SEP]"]
 
-    idx = _valid_wordpiece_indexes(sent, ["[CLS]"]+wp+["[SEP]"])
+    idx = _valid_wordpiece_indexes(sent, wp)
+    
+    trag = trag + [len(wp)-1]
+
+    print(sent)
     print(wp)
-    print(idx)
+    print(f'pred:{idx}')
+    print(f'trag:{trag}')
+    print(len(idx))
+    print(len(sent)+1)
 
-    bert_model = AutoModel.from_pretrained(model_name).to(device)
-    #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
-    bert_model.config.output_hidden_states=True
+    # bert_model = AutoModel.from_pretrained(model_name).to(device)
+    # #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    # bert_model.config.output_hidden_states=True
 
 
     # input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, tokenizer, device)

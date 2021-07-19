@@ -144,7 +144,7 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
         fix2.check(clauses, i)
     elif mode == 3:
         fix3.check(clauses, i)
-    outfile.write("%%% "+' '.join(sentence)+"\n")
+    outfile.write("%%% "+str(i)+' '+' '.join(sentence)+"\n")
     clf.write((clauses,), outfile)
 
 
