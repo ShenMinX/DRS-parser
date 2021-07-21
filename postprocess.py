@@ -104,13 +104,14 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
         # )
         sensed_fragment = []
         for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
-            if w not in senses_vocab and "\"tom\"" in s:
-                sensed_fragment.append(symbolize(f, w, l))
+            if "work" in s:
+                sensed_fragment.append(mask.unmask_fragment(f, s))
+                
             # elif w not in senses_vocab and "work" in s:
             #     l = lemmatizer.lemmatize(w)
             #     sensed_fragment.append(symbolize(f, w, l))
             else:
-                sensed_fragment.append(mask.unmask_fragment(f, s))
+                sensed_fragment.append(symbolize(f, w, l))
         fragments = tuple(sensed_fragment)
 
     else:
