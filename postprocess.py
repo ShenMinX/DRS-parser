@@ -46,7 +46,7 @@ def tuple_to_list(tup):
     return [list(x) for x in tup]
 
 
-def symbolize(fragment, word, lemma=None):
+def symbolize(fragment, word, lang = 'en',lemma=None):
     fragment = guess.guess_name(fragment, word)
     fragment = times.guess_times(fragment)
     fragment = quantities.guess_quantities(fragment)
@@ -63,7 +63,7 @@ def read_lemmas(blocks):
     return tuple(l.rstrip() for l in blocks[:-1])
 
 
-def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, outfile, encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
+def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, outfile, lang = 'en',encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
     checker = drs.Checker(mode)
     lemmatizer = WordNetLemmatizer()
     if roles:
@@ -111,12 +111,12 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
             #     l = lemmatizer.lemmatize(w)
             #     sensed_fragment.append(symbolize(f, w, l))
             else:
-                sensed_fragment.append(symbolize(f, w, l))
+                sensed_fragment.append(symbolize(f, w, lang, l))
         fragments = tuple(sensed_fragment)
 
     else:
         fragments = tuple(
-            symbolize(f, w, l) # TODO use lemmas
+            symbolize(f, w, lang, l) # TODO use lemmas
             for f, w, l
             in zip(fragments, sentence, sentence_lemmas)
         )

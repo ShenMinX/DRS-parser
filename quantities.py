@@ -4,18 +4,19 @@
 import drs
 import re
 import sys
+from googletrans import Translator, constants # dependency: pip install googletrans==4.0.0-rc1
 
 
 from word2number import w2n
 
 
-def guess_quantities(fragment):
+def guess_quantities(fragment, lang = 'en'):
     result = []
     for clause in fragment:
         if (clause[1] in ('Quantity', 'EQU')
             and not drs.is_constant(clause[3])
             and not drs.is_ref(clause[3])):
-            string = quote(guess_quantity(unquote(clause[3])))
+            string = quote(guess_quantity(unquote(clause[3]), lang))
             result.append((clause[0], clause[1], clause[2], string))
         else:
             result.append(clause)
@@ -26,7 +27,12 @@ DECIMAL_NUMBER_PATTERN = re.compile(r'\d[\d,]*(\.\d+)?$')
 ZERO_DECIMALS_PATTERN = re.compile(r'\.0+$')
 
 
-def guess_quantity(string):
+def guess_quantity(origin_string, lang = 'en'):
+    if lang != 'en':
+        translator = Translator()
+        string = translator.translator.translate(origin_string, dest=lang).text.replace(" ", "")
+    else:
+        string = origin_string
     if string.endswith('-') and len(string) > 1:
         return guess_quantity(string[:-1])
     if string.startswith('a~') and len(string) > 2:
@@ -68,8 +74,7 @@ def guess_quantity(string):
         return '?'
     if string == 'per':
         return '1' # whatever
-    return string
-
+    return origin_string
 
 def tok2num(tok):
     """Converts a token without whitespace to a number.
