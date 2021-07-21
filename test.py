@@ -1,4 +1,7 @@
 import torch
+import clf
+import re
+import string
 import transformers
 from tokenizers import BertWordPieceTokenizer
 from transformers import BertTokenizer, BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
@@ -49,6 +52,18 @@ def valid_tokenizing(sent, tokenizer, device):
 
     return input_ids, token_type_ids, attention_mask, valid_indices
 
+def encode(lang:str, quality:str, unk_chars:set):
+    alnum = re.compile(r'[^a-zA-Z0-9.]')
+    data_file = open('Data\\'+lang+'\\'+quality+'\\train.txt',encoding = 'utf-8')
+    for i, (sentence, fragments, unaligned) in enumerate(clf.read(data_file), start=1):
+        for ch in "".join(sentence):
+            if ch not in string.punctuation and bool(alnum.search(ch)):
+                unk_chars.add(ch)
+    print(i)
+    return unk_chars
+
+    
+
 if __name__ == '__main__':
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -74,6 +89,22 @@ if __name__ == '__main__':
     print(f'trag:{trag}')
     print(len(idx))
     print(len(sent)+1)
+    language = ["en","de", "it", "nl"]
+    quality =["bronze", "silver"]
+    unk_chars = set()
+    for lang in language:
+        unk_chars_lang = set()
+        for qua in quality:
+            unk_chars = encode(lang, qua, unk_chars)
+            unk_chars_lang = encode(lang, qua, unk_chars_lang)
+        with open('Data\\'+lang+'\\all_unk.txt','w', encoding="utf-8") as f1:
+            for idx, el in enumerate(unk_chars_lang):
+                f1.write(str(idx)+"\t"+el+"\n")
+            f1.close()
+    with open('Data\\all_unk.txt','w', encoding="utf-8") as f2:
+        for idx, el in enumerate(unk_chars):
+            f2.write(str(idx)+"\t"+el+"\n")
+        f2.close()
 
     # bert_model = AutoModel.from_pretrained(model_name).to(device)
     # #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)

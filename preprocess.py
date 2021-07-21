@@ -59,6 +59,13 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     targets2 = []
     max_seq_len = 0
 
+    unks = {}
+    unk_file = open('Data\\all_unk.txt', encoding = 'utf-8')
+    for entry in unk_file:
+        entry_list = entry.rstrip("\n").split("\t")
+        unks[entry_list[1]]=entry_list[2]
+    unk_file.close()
+
     files = [primary_file]
     if optional_file != None:
         files.append(optional_file)
@@ -68,7 +75,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
         data_file = open(file, encoding = 'utf-8')
         for i, (sentence, fragments, unaligned) in enumerate(
                 clf.read(data_file), start=1):
-            if len(sentence)<=38 and "政務顧問" not in sentence:
+            if len(sentence)<=38:
                 max_seq_len = max(max_seq_len, len(sentence))
                 #alignment.align(unaligned, fragments, i)
                 syms = tuple(symbols.guess_symbol(w, language) for w in sentence)
@@ -89,9 +96,12 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                     else:
                         integration_label = {}
 
-                    word = word.replace(u'\xad',"") #replace invisible unicode character "soft hyphen" 
-                    word = word.replace(u'\u200b',"") #replace invisible unicode character "zero width space" 
-                    word = word.replace(u'\uff1f', '?') #replace "fullwidth question mark"
+                    # word = word.replace(u'\xad',"") #replace invisible unicode character "soft hyphen" 
+                    # word = word.replace(u'\u200b',"") #replace invisible unicode character "zero width space" 
+                    # word = word.replace(u'\uff1f', '?') #replace "fullwidth question mark"
+                    for c in word:
+                        if c in unks:
+                            word = word.replace(c, unks[c])
 
                     
                     senses.insert(dictlist_to_tuple(syms))
@@ -100,7 +110,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
 
                     if "work" in syms or "\"tom\"" in syms:
                         content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
-                    if word != "": #exclude soft hyphen
+                    if word != "":
                         words.insert(word)
                         sent.append(word)
                     target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
