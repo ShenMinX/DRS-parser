@@ -30,7 +30,7 @@ ZERO_DECIMALS_PATTERN = re.compile(r'\.0+$')
 def guess_quantity(origin_string, lang = 'en'):
     if lang != 'en':
         translator = Translator()
-        string = translator.translator.translate(origin_string, dest=lang).text.replace(" ", "")
+        string = translator.translate(origin_string, dest="en").text.replace(" ", "")
     else:
         string = origin_string
     if string.endswith('-') and len(string) > 1:

@@ -62,7 +62,22 @@ def encode(lang:str, quality:str, unk_chars:set):
     print(i)
     return unk_chars
 
-    
+def make_unk_list(language = ["en","de", "it", "nl"], quality =["bronze", "silver"]):
+    unk_chars = set()
+    for lang in language:
+        unk_chars_lang = set()
+        for qua in quality:
+            unk_chars = encode(lang, qua, unk_chars)
+            unk_chars_lang = encode(lang, qua, unk_chars_lang)
+        with open('Data\\'+lang+'\\all_unk.txt','w', encoding="utf-8") as f1:
+            for idx, el in enumerate(unk_chars_lang):
+                f1.write(str(idx)+"\t"+el+"\n")
+            f1.close()
+    with open('Data\\all_unk.txt','w', encoding="utf-8") as f2:
+        for idx, el in enumerate(unk_chars):
+            f2.write(str(idx)+"\t"+el+"\n")
+        f2.close()
+
 
 if __name__ == '__main__':
 
@@ -89,22 +104,8 @@ if __name__ == '__main__':
     print(f'trag:{trag}')
     print(len(idx))
     print(len(sent)+1)
-    language = ["en","de", "it", "nl"]
-    quality =["bronze", "silver"]
-    unk_chars = set()
-    for lang in language:
-        unk_chars_lang = set()
-        for qua in quality:
-            unk_chars = encode(lang, qua, unk_chars)
-            unk_chars_lang = encode(lang, qua, unk_chars_lang)
-        with open('Data\\'+lang+'\\all_unk.txt','w', encoding="utf-8") as f1:
-            for idx, el in enumerate(unk_chars_lang):
-                f1.write(str(idx)+"\t"+el+"\n")
-            f1.close()
-    with open('Data\\all_unk.txt','w', encoding="utf-8") as f2:
-        for idx, el in enumerate(unk_chars):
-            f2.write(str(idx)+"\t"+el+"\n")
-        f2.close()
+
+
 
     # bert_model = AutoModel.from_pretrained(model_name).to(device)
     # #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)

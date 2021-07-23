@@ -59,12 +59,20 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     targets2 = []
     max_seq_len = 0
 
+    orgn_sents = []
+
     unks = {}
-    unk_file = open('Data\\all_unk.txt', encoding = 'utf-8')
-    for entry in unk_file:
-        entry_list = entry.rstrip("\n").split("\t")
-        unks[entry_list[1]]=entry_list[2]
-    unk_file.close()
+    unk_files = ['Data\\all_unk.txt']
+    if language in ["en","de","nl", "it"]:
+        unk_files.append('Data\\'+language+'\\all_unk.txt')
+        print("lang: "+ language)
+        for unk_f in unk_files:
+            unk_file = open(unk_f, encoding = 'utf-8')
+            for entry in unk_file:
+                entry_list = entry.rstrip("\n").split("\t")
+                if len(entry_list)==3 and entry_list[2] !='':
+                    unks[entry_list[1]]=entry_list[2]
+            unk_file.close()
 
     files = [primary_file]
     if optional_file != None:
@@ -122,15 +130,17 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 if file_idx == 0:
                     sents.append(sent)
                     targets.append(target)
+                    orgn_sents.append(sentence)
                 elif file_idx > 0:
                     sents2.append(sent)
                     targets2.append(target)
 
+
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
     if optional_file ==None:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, None, None
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, None, None
     else:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, sents2, targets2
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, sents2, targets2
 
 
 def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
