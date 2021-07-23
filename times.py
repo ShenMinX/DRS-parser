@@ -2,23 +2,47 @@
 
 
 import re
+from googletrans import Translator
 
+def google_translate(string):
+    translator = Translator()
+    string_list = translator.translate(string.replace("~", " "), dest="en").text.split()
+    string = "~".join(string_list)
+    return string
 
-def guess_times(fragment):
+def guess_times(fragment, lang):
     result = []
     for clause in fragment:
         if clause[1] == 'ClockTime':
-            result.append((clause[0], clause[1], clause[2], quote(guess_clock_time(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_clock_time(string))))
         elif clause[1] == 'DayOfMonth':
-            result.append((clause[0], clause[1], clause[2], quote(guess_day_of_month(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_day_of_month(string))))
         elif clause[1] == 'DayOfWeek':
-            result.append((clause[0], clause[1], clause[2], quote(guess_day_of_week(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_day_of_week(string))))
         elif clause[1] == 'Decade':
-            result.append((clause[0], clause[1], clause[2], quote(guess_year_of_century(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_year_of_century(string))))
         elif clause[1] == 'MonthOfYear':
-            result.append((clause[0], clause[1], clause[2], quote(guess_month_of_year(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_month_of_year(string))))
         elif clause[1] == 'YearOfCentury':
-            result.append((clause[0], clause[1], clause[2], quote(guess_year_of_century(unquote(clause[3])))))
+            string = unquote(clause[3])
+            if lang !="en":
+                string = google_translate(string)
+            result.append((clause[0], clause[1], clause[2], quote(guess_year_of_century(string))))
         else:
             result.append(clause)
     return tuple(result)
@@ -360,7 +384,7 @@ MONTHS = {
 
 def guess_month_of_year(string):
     if string in MONTHS:
-        return '{:02d}'.format(MONTHS[string])
+        return '{:02d}'.format(MONTHS[string.lower()])
     return string
 
 

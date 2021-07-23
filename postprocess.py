@@ -48,7 +48,7 @@ def tuple_to_list(tup):
 
 def symbolize(fragment, word, lang = 'en',lemma=None):
     fragment = guess.guess_name(fragment, word)
-    fragment = times.guess_times(fragment)
+    fragment = times.guess_times(fragment, lang)
     fragment = quantities.guess_quantities(fragment, lang)
     if lemma:
         fragment = guess.guess_concept_from_lemma(fragment, lemma)

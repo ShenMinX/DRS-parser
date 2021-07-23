@@ -76,7 +76,7 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    lang = "en"
+    lang = "it"
 
     hyper_batch_size = 16
 
@@ -99,15 +99,13 @@ if __name__ == '__main__':
     start.record()
     
     # for en, de:
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
+    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
     # for it, nl:
-    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
     
-    #en: "bert-base-cased"
-    #nl: "Geotrend/bert-base-nl-cased"
-    #de: "dbmdz/bert-base-german-cased"
-    #it: "dbmdz/bert-base-italian-cased"
-    model_name = "bert-base-cased"
+    bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
+
+    model_name = bert_models[lang]
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -245,7 +243,7 @@ if __name__ == '__main__':
 
     #eval:
     in_files = ['Data\\'+lang+'\\gold\\dev.txt', 'Data\\'+lang+'\\gold\\test.txt']
-    out_files = ['Data\\'+lang+'\\gold\\prediction_dev.clf', 'Data\\'+lang+'\\gold\\prediction_test.clf']
+    out_files = ['Data\\'+lang+'\\gold\\prediction_dev.txt', 'Data\\'+lang+'\\gold\\prediction_test.txt']
     for in_f, out_f in zip(in_files, out_files):
         with torch.no_grad():
 
@@ -312,8 +310,8 @@ if __name__ == '__main__':
 
         
 
-            #python counter.py -f1 prediction_dev.clf -f2 dev.txt -prin -ms_file result_dev.txt -g clf_signature.yaml
-            #python counter.py -f1 prediction_test.clf -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
+            #python counter.py -f1 prediction_dev.txt -f2 dev.txt -prin -ms_file result_dev.txt -g clf_signature.yaml
+            #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
                     #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)

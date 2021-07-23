@@ -62,17 +62,15 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     orgn_sents = []
 
     unks = {}
-    unk_files = ['Data\\all_unk.txt']
-    if language in ["en","de","nl", "it"]:
-        unk_files.append('Data\\'+language+'\\all_unk.txt')
-        print("lang: "+ language)
-        for unk_f in unk_files:
-            unk_file = open(unk_f, encoding = 'utf-8')
-            for entry in unk_file:
-                entry_list = entry.rstrip("\n").split("\t")
-                if len(entry_list)==3 and entry_list[2] !='':
-                    unks[entry_list[1]]=entry_list[2]
-            unk_file.close()
+
+    if language in ["en","de","nl", "it"]:     
+        print("lang: "+ language)  
+        unk_file = open('Data\\'+language+'\\all_unk.txt', encoding = 'utf-8')
+        for entry in unk_file:
+            entry_list = entry.rstrip("\n").split("\t")
+            if len(entry_list)==3 and entry_list[2] !='':
+                unks[entry_list[1]]=entry_list[2]
+        unk_file.close()
 
     files = [primary_file]
     if optional_file != None:
