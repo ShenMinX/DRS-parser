@@ -3,10 +3,7 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
 import torch.utils.data as data
 
-import re
-import numpy as np
 
-from tokenizers import BertWordPieceTokenizer
 from transformers import BertModel, AdamW, get_linear_schedule_with_warmup, AutoModel, AutoTokenizer
 
 import mydata
@@ -76,7 +73,11 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    lang = "it"
+    lang = "en"
+
+    train = False
+
+    save_checkpoint = False
 
     hyper_batch_size = 16
 
@@ -86,6 +87,7 @@ if __name__ == '__main__':
 
     epochs = 10
     middle_epoch = 5
+    old_epoch = 0
     if epochs < middle_epoch:
         middle_epoch = epochs 
 
@@ -99,11 +101,13 @@ if __name__ == '__main__':
     start.record()
     
     # for en, de:
-    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
     # for it, nl:
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
+    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
     
     bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
+
+    model_path = 'Data\\'+lang+'\\model_paremeters.pth' # path of checkpoint of finetuned model
 
     model_name = bert_models[lang]
     
@@ -113,17 +117,16 @@ if __name__ == '__main__':
 
     dataset_size = len(train_dataset)
     indices = list(range(dataset_size))
-    # primary_indices, optional_indices = indices[:train_dataset.primary_size], indices[train_dataset.primary_size:]
+
     primary_indices, optional_indices = indices[:train_dataset.primary_size], indices
 
     primary_sampler = data.sampler.SubsetRandomSampler(primary_indices)
     if len(train_dataset)>train_dataset.primary_size:
         optional_sampler = data.sampler.SubsetRandomSampler(optional_indices)
 
-    #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
     bert_model = AutoModel.from_pretrained(model_name).to(device)
-    #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+
     bert_model.config.output_hidden_states=True
 
     
@@ -133,6 +136,7 @@ if __name__ == '__main__':
 
     lossfunc = nn.CrossEntropyLoss()
 
+    ############ Rebalancing classes in loss function for empty labels ############################## 
     weighted_label = integration_labels.token_to_ix[preprocess.dictlist_to_tuple({"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []})]
     label_base = (torch.tensor(list(range(len(integration_labels.token_to_ix))))!=weighted_label).type(torch.float32).to(device)
     loss_weight = torch.where(label_base==0, torch.tensor(0.5, dtype=torch.float32).to(device), label_base)
@@ -142,6 +146,7 @@ if __name__ == '__main__':
     sense_base = (torch.tensor(list(range(len(senses.token_to_ix))))!=weighted_sense).type(torch.float32).to(device)
     loss_weight_s = torch.where(sense_base==0, torch.tensor(0.5, dtype=torch.float32).to(device), sense_base)
     lossfunc3 = nn.CrossEntropyLoss(weight=loss_weight_s)
+    ##################################################################################################
 
     tagging_model = Linear_classifiers(
         embed_size = bert_embed_size, 
@@ -153,89 +158,114 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(tagging_model.parameters(),lr=learning_rate)
 
-    if fine_tune == True:
-        bert_optimizer = AdamW(bert_model.parameters(), lr=learning_rate)
+    bert_optimizer = AdamW(bert_model.parameters(), lr=learning_rate)
 
+    ################ Load Checkpoints ###############################################################
+    try:
+        checkpoint = torch.load(model_path, map_location=device)
+        if fine_tune == True:
+            bert_model.load_state_dict(checkpoint['bert_model_state_dict'])
+            bert_optimizer.load_state_dict(checkpoint['bert_optimizer_state_dict'])
+        tagging_model.load_state_dict(checkpoint['tagging_model_state_dict'])       
+        optimizer.load_state_dict(checkpoint['tagging_optimizer_state_dict'])
+        old_epoch = checkpoint['epoch']
 
-    scheduler1 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
-    scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
-    if fine_tune == True:
-        scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
-        scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
+    
+    except FileNotFoundError:
+        train = True
+    #################################################################################################
 
-    with torch.no_grad():
-        content_set = torch.LongTensor(list(train_dataset.content_frg_idx)).to(device)
-
-    for e in range(epochs):
-        total_loss = 0.0
-        if e >= middle_epoch or len(train_dataset)==train_dataset.primary_size or epochs==middle_epoch:
-            train_loader = primary_loader
-        else:
-            train_loader = optional_loader
-
-        for idx, (bert_input, valid_indices, target_s, target_f, target_i, og_sents) in enumerate(train_loader):
-
-            if fine_tune == False:
-                with torch.no_grad():
-                    bert_outputs = bert_model(**bert_input)
-
-            else:
-                bert_outputs = bert_model(**bert_input)
-                
-            embeddings = bert_outputs.hidden_states[7]
-
-            mask = pad_sequence([torch.ones(t.shape[0], dtype=torch.long).to(device) for t in target_s], batch_first=True, padding_value=0)
-
-            valid_embeds = [
-                average_word_emb(embeds, valid)
-                for embeds, valid in zip(embeddings, valid_indices)]
-
-            # valid_embeds = [
-            #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
-            #     for embeds, valid in zip(embeddings, valid_indices)]
-                
-            batch_size = len(valid_embeds)
-
-            padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
-            padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
-            padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
-            padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
-
-            #print(padded_input.shape, padded_sense.shape,padded_frg.shape, padded_inter.shape )
-
-            sense_out, frg_out, inter_out = tagging_model(padded_input)
-
-            batch_loss = 0.0
-
-            for i in range(padded_input.shape[1]): 
-                sense_loss = lossfunc3(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
-                frg_loss = lossfunc(frg_out[:,i,:]*mask[:, i].view(-1, 1), padded_frg[:,i]*mask[:, i])
-                inter_loss = lossfunc2(inter_out[:,i,:]*mask[:, i].view(-1, 1), padded_inter[:,i]*mask[:, i])
-
-                batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
-
-            optimizer.zero_grad()
-            if fine_tune == True:
-                bert_optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
-            if e <middle_epoch:
-                scheduler1.step()
-            else:
-                scheduler3.step()
-            if fine_tune == True:
-                bert_optimizer.step()
-                if e <middle_epoch:
-                    scheduler2.step()
-                else:
-                    scheduler4.step()
+    if train:
+        scheduler1 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
+        scheduler3 = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
+        if fine_tune == True:
+            scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
+            scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epochs - middle_epoch))
 
         with torch.no_grad():
-            total_loss += float(batch_loss)
+            content_set = torch.LongTensor(list(train_dataset.content_frg_idx)).to(device)
 
-        print(e+1, ". total loss:", total_loss)
+        for e in range(epochs):
+            total_loss = 0.0
+            if e >= middle_epoch or len(train_dataset)==train_dataset.primary_size or epochs==middle_epoch:
+                train_loader = primary_loader
+            else:
+                train_loader = optional_loader
 
-        e+=1
+            for idx, (bert_input, valid_indices, target_s, target_f, target_i, og_sents) in enumerate(train_loader):
+
+                if fine_tune == False:
+                    with torch.no_grad():
+                        bert_outputs = bert_model(**bert_input)
+
+                else:
+                    bert_outputs = bert_model(**bert_input)
+                    
+                embeddings = bert_outputs.hidden_states[7]
+
+                mask = pad_sequence([torch.ones(t.shape[0], dtype=torch.long).to(device) for t in target_s], batch_first=True, padding_value=0)
+
+                ###  average wordpiece embedding
+                valid_embeds = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings, valid_indices)]
+
+                ###  initial wordpiece embedding
+                # valid_embeds = [
+                #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+                #     for embeds, valid in zip(embeddings, valid_indices)]
+                    
+                batch_size = len(valid_embeds)
+
+                padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+                padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
+                padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
+                padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
+
+
+
+                sense_out, frg_out, inter_out = tagging_model(padded_input)
+
+                batch_loss = 0.0
+
+                for i in range(padded_input.shape[1]): 
+                    sense_loss = lossfunc3(sense_out[:,i,:]*mask[:, i].view(-1, 1), padded_sense[:,i]*mask[:, i])
+                    frg_loss = lossfunc(frg_out[:,i,:]*mask[:, i].view(-1, 1), padded_frg[:,i]*mask[:, i])
+                    inter_loss = lossfunc2(inter_out[:,i,:]*mask[:, i].view(-1, 1), padded_inter[:,i]*mask[:, i])
+
+                    batch_loss = batch_loss + sense_loss + frg_loss + inter_loss
+
+                optimizer.zero_grad()
+                if fine_tune == True:
+                    bert_optimizer.zero_grad()
+                batch_loss.backward()
+                optimizer.step()
+                if e <middle_epoch:
+                    scheduler1.step()
+                else:
+                    scheduler3.step()
+                if fine_tune == True:
+                    bert_optimizer.step()
+                    if e <middle_epoch:
+                        scheduler2.step()
+                    else:
+                        scheduler4.step()
+
+            with torch.no_grad():
+                total_loss += float(batch_loss)
+
+            print(e+old_epoch+1, ". total loss:", total_loss)
+
+            e+=1
+
+        if save_checkpoint:
+            torch.save({
+            'epoch': old_epoch+e+1,
+            'bert_model_state_dict': bert_model.state_dict(),
+            'tagging_model_state_dict': tagging_model.state_dict(),
+            'bert_optimizer_state_dict': bert_optimizer.state_dict(),
+            'tagging_optimizer_state_dict': optimizer.state_dict(),
+            }, model_path)
 
     end.record()
     torch.cuda.synchronize()

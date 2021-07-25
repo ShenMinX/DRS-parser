@@ -141,7 +141,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
         return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, sents2, targets2
 
 
-def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
+def encode(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
     retrieval_labels = set()
     integration_labels = []
     max_seq_len = 0
