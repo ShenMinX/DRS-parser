@@ -383,7 +383,7 @@ MONTHS = {
 
 
 def guess_month_of_year(string):
-    if string in MONTHS:
+    if string.lower() in MONTHS:
         return '{:02d}'.format(MONTHS[string.lower()])
     return string
 
