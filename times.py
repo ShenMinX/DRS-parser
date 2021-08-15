@@ -6,7 +6,7 @@ from googletrans import Translator
 
 def google_translate(string):
     translator = Translator()
-    string_list = translator.translate(string.replace("~", " "), dest="en").text.split()
+    string_list = [translator.translate(w, dest="en") for w in string.replace("~", " ").split()]
     string = "~".join(string_list)
     return string
 
@@ -199,7 +199,7 @@ MINUTES = {
 }
 
 
-def guess_clock_time(string, delta_h=0, delta_m=0, assume='pm'):
+def guess_clock_time(string, delta_h=0, delta_m=0, assume=' '):
     if string == 'midnight':
         return '00:00'
     if string in ('noon', 'midday'):
@@ -246,6 +246,8 @@ def guess_clock_time(string, delta_h=0, delta_m=0, assume='pm'):
 
 def clock_time(h, m, assume):
     if h < 12 and assume == 'pm':
+        h += 12
+    elif h < 7 and assume == " ":
         h += 12
     return '{:02d}:{:02d}'.format(h, m)
 

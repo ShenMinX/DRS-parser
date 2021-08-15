@@ -4,7 +4,7 @@
 import drs
 import re
 import sys
-from googletrans import Translator # dependency: pip install googletrans==4.0.0-rc1
+from times import google_translate
 
 
 from word2number import w2n
@@ -29,9 +29,7 @@ ZERO_DECIMALS_PATTERN = re.compile(r'\.0+$')
 
 def guess_quantity(origin_string, lang = 'en'):
     if lang != 'en':
-        translator = Translator()
-        string_list = translator.translate(origin_string.replace("~", " "), dest="en").text.split()
-        string = "~".join(string_list)
+        string = google_translate(origin_string)
     else:
         string = origin_string
     if string.endswith('-') and len(string) > 1:
