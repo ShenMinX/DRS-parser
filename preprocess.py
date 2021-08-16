@@ -50,6 +50,7 @@ VARAIBLE_PATTERN = re.compile(r'(?P<type>[benpstx])(?P<index>\d+)$')
 
 def rename_var(fragments):
     #type_refs_map = collections.defaultdict(list)
+    syms_list = []
     type_refs_map = {'b': [], 'e': [], 'n': [], 'p': [], 's': [], 't': [], 'x': []}
     new_fragments = []
     for f in fragments:
@@ -67,8 +68,10 @@ def rename_var(fragments):
                     new_s = type_+str(type_refs_map[type_].index(index_)+1)
                 new_clause.append(new_s)
             new_fragment.append(tuple(new_clause))
-        new_fragments.append(tuple(new_fragment))
-    return tuple(new_fragments)
+        new_fragment, syms = mask.mask_fragment(tuple(new_fragment))
+        new_fragments.append(new_fragment)
+        syms_list.append(syms)
+    return tuple(new_fragments), syms_list
 
 
 def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
@@ -113,15 +116,15 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 syms = tuple(symbols.guess_symbol(w, language) for w in sentence)
                 fragments = constants.add_constant_clauses(syms, fragments)
                 fragments = constants.replace_constants(fragments)
-                fragments = rename_var(fragments)
+                fragments, syms_list = rename_var(fragments)
                 fragments = tuple(drs.sorted(f) for f in fragments)
                 fragments = address.debruijnify(fragments)
 
                 sent = []
                 target = []
 
-                for word, fragment in zip(sentence, fragments):
-                    fragment, syms = mask.mask_fragment(fragment)
+                for word, fragment, syms in zip(sentence, fragments, syms_list):
+                    #fragment, syms = mask.mask_fragment(fragment)
                     if encoding == 'ret-int':
                         fragment, integration_label = address.abstract(fragment)
                     else:
