@@ -75,7 +75,7 @@ if __name__ == '__main__':
     #train
     lang = "en"
 
-    train = False
+    train = True
 
     save_checkpoint = False
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
     learning_rate = 0.00015
 
-    epochs = 10
+    epochs = 5
     middle_epoch = 5
     old_epoch = 0
     if epochs < middle_epoch:

@@ -8,6 +8,7 @@ import json
 import mask
 import symbols
 import sys
+import re
 
 class dictionary():
 
@@ -44,6 +45,31 @@ def ixs_to_tokens(ix_to_token, ixs):
 
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
+
+VARAIBLE_PATTERN = re.compile(r'(?P<type>[benpstx])(?P<index>\d+)$')
+
+def rename_var(fragments):
+    #type_refs_map = collections.defaultdict(list)
+    type_refs_map = {'b': [], 'e': [], 'n': [], 'p': [], 's': [], 't': [], 'x': []}
+    new_fragments = []
+    for f in fragments:
+        new_fragment = []
+        for c in f:
+            new_clause = []
+            for s in c:
+                match = VARAIBLE_PATTERN.match(s)
+                new_s = s
+                if match:
+                    type_ = match.group('type')
+                    index_ = match.group('index')
+                    if index_ not in type_refs_map[type_]:
+                        type_refs_map[type_].append(index_)
+                    new_s = type_+str(type_refs_map[type_].index(index_)+1)
+                new_clause.append(new_s)
+            new_fragment.append(tuple(new_clause))
+        new_fragments.append(tuple(new_fragment))
+    return tuple(new_fragments)
+
 
 def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
     words = dictionary()
@@ -83,15 +109,14 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 clf.read(data_file), start=1):
             if len(sentence)<=38:
                 max_seq_len = max(max_seq_len, len(sentence))
-                #alignment.align(unaligned, fragments, i)
+                alignment.align(unaligned, fragments, i)
                 syms = tuple(symbols.guess_symbol(w, language) for w in sentence)
                 fragments = constants.add_constant_clauses(syms, fragments)
                 fragments = constants.replace_constants(fragments)
+                fragments = rename_var(fragments)
                 fragments = tuple(drs.sorted(f) for f in fragments)
                 fragments = address.debruijnify(fragments)
 
-                #sent = ["-BOS-"]
-                #target = [("-BOS-","-BOS-", "-BOS-")]
                 sent = []
                 target = []
 
@@ -102,9 +127,6 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                     else:
                         integration_label = {}
 
-                    # word = word.replace(u'\xad',"") #replace invisible unicode character "soft hyphen" 
-                    # word = word.replace(u'\u200b',"") #replace invisible unicode character "zero width space" 
-                    # word = word.replace(u'\uff1f', '?') #replace "fullwidth question mark"
                     for c in word:
                         if c in unks:
                             word = word.replace(c, unks[c])
@@ -122,8 +144,6 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                     target.append((dictlist_to_tuple(syms), tuple(fragment), dictlist_to_tuple(integration_label)))
      
 
-                #sent.append("-EOS-")
-                #target.append(("-EOS-","-EOS-", "-EOS-"))
                 #if len(sent) <=38:
                 if file_idx == 0:
                     sents.append(sent)
@@ -135,6 +155,9 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
 
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
+    print(f"# senses: {len(senses.token_to_ix)}")
+    print(f"# fragments: {len(clauses.token_to_ix)}")
+    print(f"# integration_labels: {len(integration_labels.token_to_ix)}")
     if optional_file ==None:
         return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, None, None
     else:
