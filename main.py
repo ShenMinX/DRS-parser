@@ -11,6 +11,8 @@ import preprocess
 from postprocess import decode, tuple_to_dictlist, tuple_to_list, tuple_to_iterlabels
 from models import Linear_classifiers
 
+torch.manual_seed(21)
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def my_collate(batch):
@@ -75,7 +77,7 @@ if __name__ == '__main__':
     #train
     lang = "en"
 
-    train = True
+    train = False
 
     save_checkpoint = False
 
@@ -85,7 +87,7 @@ if __name__ == '__main__':
 
     learning_rate = 0.00015
 
-    epochs = 5
+    epochs = 10
     middle_epoch = 5
     old_epoch = 0
     if epochs < middle_epoch:

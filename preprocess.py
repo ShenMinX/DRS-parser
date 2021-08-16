@@ -73,6 +73,14 @@ def rename_var(fragments):
         syms_list.append(syms)
     return tuple(new_fragments), syms_list
 
+def mask_norename(fragments):
+    new_fragments = []
+    syms_list = []
+    for f in fragments:
+        new_f, syms = mask.mask_fragment(f)
+        new_fragments.append(new_f)
+        syms_list.append(syms)
+    return tuple(new_fragments), syms_list
 
 def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
     words = dictionary()
@@ -92,7 +100,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
 
     unks = {}
 
-    if language in ["en","de","nl", "it"]:     
+    if language in ["en","de","nl","it"]:     
         print("lang: "+ language)  
         unk_file = open('Data\\'+language+'\\all_unk.txt', encoding = 'utf-8')
         for entry in unk_file:
@@ -112,19 +120,21 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 clf.read(data_file), start=1):
             if len(sentence)<=38:
                 max_seq_len = max(max_seq_len, len(sentence))
-                alignment.align(unaligned, fragments, i)
+                #alignment.align(unaligned, fragments, i)
                 syms = tuple(symbols.guess_symbol(w, language) for w in sentence)
                 fragments = constants.add_constant_clauses(syms, fragments)
                 fragments = constants.replace_constants(fragments)
-                fragments, syms_list = rename_var(fragments)
+                #fragments, syms_list = rename_var(fragments)
+                #fragments, syms_list = mask_norename(fragments)
                 fragments = tuple(drs.sorted(f) for f in fragments)
                 fragments = address.debruijnify(fragments)
 
                 sent = []
                 target = []
 
-                for word, fragment, syms in zip(sentence, fragments, syms_list):
-                    #fragment, syms = mask.mask_fragment(fragment)
+                #for word, fragment, syms in zip(sentence, fragments, syms_list):
+                for word, fragment in zip(sentence, fragments):
+                    fragment, syms = mask.mask_fragment(fragment)
                     if encoding == 'ret-int':
                         fragment, integration_label = address.abstract(fragment)
                     else:
