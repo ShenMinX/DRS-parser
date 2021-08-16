@@ -11,7 +11,7 @@ import preprocess
 from postprocess import decode, tuple_to_dictlist, tuple_to_list, tuple_to_iterlabels
 from models import Linear_classifiers
 
-torch.manual_seed(21)
+torch.manual_seed(33)
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
