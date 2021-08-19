@@ -8,6 +8,9 @@ import json
 import mask
 import symbols
 import sys
+import collections
+
+
 
 class dictionary():
 
@@ -51,6 +54,8 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     clauses = dictionary()
     integration_labels = dictionary()
 
+    frq_senses = collections.defaultdict(dict)
+
     content_frg_idx = set([])
 
     sents = []
@@ -60,7 +65,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     max_seq_len = 0
 
     unks = {}
-    unk_file = open('Data\\all_unk.txt', encoding = 'utf-8')
+    unk_file = open('Data\\en\\all_unk.txt', encoding = 'utf-8')
     for entry in unk_file:
         entry_list = entry.rstrip("\n").split("\t")
         unks[entry_list[1]]=entry_list[2]
@@ -90,9 +95,9 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                 target = []
 
                 for word, fragment in zip(sentence, fragments):
-                    fragment, syms = mask.mask_fragment(fragment)
+                    fragment, syms, frq_senses  = mask.mask_fragment(fragment, word, frq_senses)
                     if encoding == 'ret-int':
-                        fragment, integration_label = address.abstract(fragment)
+                        fragment, integration_label= address.abstract(fragment)
                     else:
                         integration_label = {}
 
@@ -128,12 +133,12 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
 
     print(f"max sequence length: {max_seq_len}", file=sys.stderr)
     if optional_file ==None:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, None, None
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, frq_senses, None, None
     else:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, sents2, targets2
+        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, frq_senses, sents2, targets2
 
 
-def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
+def encode(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
     retrieval_labels = set()
     integration_labels = []
     max_seq_len = 0

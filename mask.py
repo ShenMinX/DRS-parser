@@ -4,14 +4,16 @@
 import drs
 import collections
 import re
+from nltk.stem import WordNetLemmatizer
+LEMMATIZER = WordNetLemmatizer()
 
 
-def mask_fragment(fragment):
+def mask_fragment(fragment, word, frq_senses):
     symbols = collections.defaultdict(list)
-    return tuple(mask_clause(c, symbols) for c in fragment), symbols
+    return tuple(mask_clause(c, symbols, word, frq_senses) for c in fragment), symbols, frq_senses
 
 
-def mask_clause(clause, symbols):
+def mask_clause(clause, symbols, word, frq_senses):
     clause = list(clause)
     # Concepts and sense numbers
     if len(clause) == 4 and drs.is_sense(clause[2]) and \
@@ -20,6 +22,18 @@ def mask_clause(clause, symbols):
         sense_string = clause[2]
         pos = sense_string[1:2]
         number = sense_string[3:5]
+
+        
+        act_sense = concept+'.'+pos+'.'+number
+        key = word+pos
+        if word in frq_senses:
+            if act_sense in frq_senses[key]:
+                frq_senses[key][act_sense] = frq_senses[key][act_sense] + 1
+            else:
+                frq_senses[key][act_sense] = 1
+        else:
+            frq_senses[key] = {act_sense:1}
+
         masked_sense_string = '"{}.00"'.format(pos)
         symbols['work'].append(concept)
         symbols[masked_sense_string].append(sense_string)

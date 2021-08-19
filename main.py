@@ -100,10 +100,10 @@ if __name__ == '__main__':
 
     start.record()
     
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, frq_senses, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
     # for it, nl:
     #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
-    
+
     #en: "bert-base-cased"
     #nl: "Geotrend/bert-base-nl-cased"
     #de: "dbmdz/bert-base-german-cased"
@@ -258,7 +258,7 @@ if __name__ == '__main__':
             correct_i = 0
             n_of_t = 0
             count = 1
-            _, _, _, _, te_sents, te_targets,_, _, _ = preprocess.encode2(primary_file = in_f, language = lang)
+            _, _, _, _, te_sents, te_targets, _,_, _, _ = preprocess.encode2(primary_file = in_f, language = lang)
             pred_file = open( out_f, 'w', encoding="utf-8")
 
             test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx)
@@ -318,7 +318,7 @@ if __name__ == '__main__':
 
                 for sen, tar_s, tar_f, tar_i in zip(sent,sense_pred,frg_pred,inter_pred):
                     #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
-                    decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file)
+                    decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], frq_senses, count, pred_file)
                     count+=1
             pred_file.close()
 
