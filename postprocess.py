@@ -111,7 +111,7 @@ def decode(sentence, symbols, fragments, integration_actions, frq_senses, i, out
             #     l = lemmatizer.lemmatize(w)
             #     sensed_fragment.append(symbolize(f, w, l))
             else:
-                sensed_fragment.append(symbolize(f, w, l))
+                sensed_fragment.append(symbolize(f, w, frq_senses, l))
         fragments = tuple(sensed_fragment)
 
     else:
