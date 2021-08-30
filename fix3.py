@@ -68,6 +68,31 @@ def fix_loop(clauses, box):
         return new_clauses
     return fix_loop(new_clauses, box)
 
+def fix_loop2(clauses, box):
+    """Removes the loop by removing clause.
+
+    Simply search and removes clause that have box as first element. Subsequently
+    adds missing REFs until no loop can be found. If removing one clause doesnt solve the problem, proceed to fix_loop to remove it all...
+    """
+
+    new_clauses = clauses
+    for i in range(len(clauses)):
+        if new_clauses[i][0] == box:
+            new_clauses.pop(i)
+            fix.add_missing_concept_refs(new_clauses)
+            fix.add_missing_arg0_refs(new_clauses)
+            fix.add_missing_arg1_refs(new_clauses)
+
+            box2 = find_loop(new_clauses)
+            if box2 is None:
+                return new_clauses
+            elif box2==box:
+                new_clauses = clauses
+            else:
+                return fix_loop2(new_clauses, box2)
+
+    return fix_loop(clauses, box)
+
 
 def ensure_no_loops(clauses):
     """Makes sure the subordination relation is loop-free.
@@ -77,7 +102,7 @@ def ensure_no_loops(clauses):
     box = find_loop(clauses)
     if box is None:
         return clauses
-    return fix_loop(clauses, box)
+    return fix_loop2(clauses, box)
 
 
 def find_partition(clauses):
