@@ -6,7 +6,7 @@ from googletrans import Translator
 
 def google_translate(string):
     translator = Translator()
-    string_list = [translator.translate(w, dest="en") for w in string.replace("~", " ").split()]
+    string_list = [translator.translate(w, dest="en").text for w in string.replace("~", " ").split()]
     string = "~".join(string_list)
     return string
 

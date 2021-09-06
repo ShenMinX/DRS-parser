@@ -102,7 +102,7 @@ def ensure_no_loops(clauses):
     box = find_loop(clauses)
     if box is None:
         return clauses
-    return fix_loop2(clauses, box)
+    return fix_loop(clauses, box)
 
 
 def find_partition(clauses):
