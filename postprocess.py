@@ -105,13 +105,15 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
         sensed_fragment = []
         for f, s, w, l in zip(fragments, symbols, sentence, sentence_lemmas):
             if "work" in s:
-                sensed_fragment.append(mask.unmask_fragment(f, s))
+                new_frag = mask.unmask_fragment(f, s)
                 
             # elif w not in senses_vocab and "work" in s:
             #     l = lemmatizer.lemmatize(w)
             #     sensed_fragment.append(symbolize(f, w, l))
             else:
-                sensed_fragment.append(symbolize(f, w, lang, l))
+                new_frag = symbolize(f, w, lang, l)
+            #new_frag = tuple([c+("\t% "+w,) for c in new_frag])  ### word alignment (triggers clf_referee "to many tokens")  
+            sensed_fragment.append(new_frag)
         fragments = tuple(sensed_fragment)
 
     else:
