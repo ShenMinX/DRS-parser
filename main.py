@@ -276,7 +276,8 @@ if __name__ == '__main__':
     #eval:
     in_files = ['Data\\'+lang+'\\gold\\dev.txt', 'Data\\'+lang+'\\gold\\test.txt']
     out_files = ['Data\\'+lang+'\\gold\\prediction_dev.txt', 'Data\\'+lang+'\\gold\\prediction_test.txt']
-    for in_f, out_f in zip(in_files, out_files):
+    out_files2 = ['Data\\'+lang+'\\gold\\sen_prpty_dev.txt', 'Data\\'+lang+'\\gold\\sen_prpty_test.txt']
+    for in_f, out_f, out_f2 in zip(in_files, out_files, out_files2):
         with torch.no_grad():
 
             print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
@@ -289,6 +290,7 @@ if __name__ == '__main__':
             count = 1
             _, _, _, _, te_sents, te_targets, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = lang)
             pred_file = open( out_f, 'w', encoding="utf-8")
+            sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
             test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, orgn_sents)
 
@@ -341,15 +343,17 @@ if __name__ == '__main__':
                     n_of_t += ts.shape[0]
 
         
-
+            #cd DRS_parsing_3\evaluation
             #python counter.py -f1 prediction_dev.txt -f2 dev.txt -prin -ms_file result_dev.txt -g clf_signature.yaml
             #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
                     #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
+                    sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n")
                     decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, lang)
                     count+=1
             pred_file.close()
+            sen_prpty_file.close()
 
             print("Sense Accurancy: ", correct_s/n_of_t)
             print("Fragment Accurancy: ", correct_f/n_of_t)
