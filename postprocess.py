@@ -148,7 +148,8 @@ def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, o
     elif mode == 3:
         fix3.check(clauses, i)
     outfile.write("%%% "+str(i)+' '+' '.join(sentence)+"\n")
-    clf.write((clauses,), outfile)
+    ana_clauses = clf.write((clauses,), outfile)
+    return ana_clauses
 
 
 if __name__ == '__main__':

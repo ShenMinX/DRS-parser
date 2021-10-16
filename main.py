@@ -9,6 +9,8 @@ from transformers import BertModel, AdamW, get_linear_schedule_with_warmup, Auto
 import mydata
 import preprocess
 from postprocess import decode, tuple_to_dictlist, tuple_to_list, tuple_to_iterlabels
+from error_eval import ana_metrics
+
 from models import Linear_classifiers
 
 torch.manual_seed(33)
@@ -348,9 +350,9 @@ if __name__ == '__main__':
             #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
-                    #decode(sen[1: -1], [tuple_to_dictlist(t_s) for t_s in tar_s[1:-1]], [tuple_to_list(t_f) for t_f in tar_f[1:-1]], [tuple_to_iterlabels(t_i) for t_i in tar_i[1:-1]], i+1, pred_file)
-                    sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n")
-                    decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, lang)
+                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, lang)
+                    #sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n") # for relation between number of words and fscore
+                    sen_prpty_file.write(ana_metrics(ana_clauses, count))  # for eval fscore of drs contains certain clause element                 
                     count+=1
             pred_file.close()
             sen_prpty_file.close()

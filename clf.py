@@ -56,7 +56,10 @@ def read(flo: TextIO): #-> Sequence[Tuple[str, Tuple[Sequence[Clause]]]]:
 
 
 def write(drs, flo):
+    clauses = []
     for token in drs:
         for clause in token:
+            clauses.append(clause)
             print(' '.join(clause), file=flo)
     print(file=flo)
+    return clauses

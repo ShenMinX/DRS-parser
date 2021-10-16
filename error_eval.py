@@ -9,11 +9,25 @@ def extract_target(path1, path2):
         for line1, line2 in zip(file1, file2):
             sen_prpty_int = int(line1.split()[1])
             score = float(line2.split()[1])
-            if line1.split()[1] in reslit_dict:
+            if sen_prpty_int in reslit_dict:
                 reslit_dict[sen_prpty_int].append(score)
             else:
                 reslit_dict[sen_prpty_int] = [score]
+
     return reslit_dict
+
+def ana_metrics(ana_clauses, count):
+    hit = 0
+    flag = ['Quantity']
+    for c in ana_clauses:
+        for t in c:
+            if t in flag:
+                hit += 1
+    if hit > 0:
+        out_str = str(count)+"\t1\n"
+    else:
+        out_str = str(count)+"\t0\n"
+    return out_str
 
 if __name__ == '__main__':
     path1 = 'Data\\en\\gold\\sen_prpty_dev.txt'
