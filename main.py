@@ -77,7 +77,7 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    lang = "en"
+    lang = "de"
 
     train = False
 

@@ -1,7 +1,7 @@
 
 def calcuate_mean(dict_list):
     for key, list in dict_list.items():
-        print(str(key)+"\t"+str(sum(list)/len(list)))
+        print(str(key)+"\t"+str(sum(list)/len(list))+'\t'+str(len(list)))
 
 def extract_target(path1, path2):
     reslit_dict = {}
@@ -18,7 +18,15 @@ def extract_target(path1, path2):
 
 def ana_metrics(ana_clauses, count):
     hit = 0
-    flag = ['Quantity']
+    # 'Quantity'
+    # 'ClockTime', 'DayOfMonth', 'DayOfWeek', 'Decade', 'MonthOfYear', 'YearOfCentury'
+    # 'Sub'
+    # 'Name'
+    # 'NECESSITY', 'POSSIBILITY'
+    # 'PRESUPPOSITION'
+    # 'CONDITION', 'CONSEQUENCE'
+    # 'CONTINUATION', 'NARRATION', 'BACKGROUND', 'RESULT', 'ELABORATION', 'INSTANCE', 'TOPIC', 'EXPLANATION', 'PRECONDITION', 'COMMENTARY', 'CORRECTION' 
+    flag = ['NECESSITY', 'POSSIBILITY']
     for c in ana_clauses:
         for t in c:
             if t in flag:
@@ -30,7 +38,7 @@ def ana_metrics(ana_clauses, count):
     return out_str
 
 if __name__ == '__main__':
-    path1 = 'Data\\en\\gold\\sen_prpty_dev.txt'
-    path2 = 'Data\\en\\gold\\result_dev.txt'
+    path1 = 'Data\\de\\gold\\sen_prpty_dev.txt'
+    path2 = 'Data\\de\\gold\\result_dev.txt'
     reslit_dict = extract_target(path1, path2)
     calcuate_mean(reslit_dict)
