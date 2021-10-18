@@ -10,6 +10,8 @@ import symbols
 import sys
 import re
 
+from error_eval import ana_metrics2
+
 class dictionary():
 
     def __init__(self):
@@ -177,12 +179,13 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
         return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, sents2, targets2
 
 
-def encode(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding = 'utf-8')):
+def encode(encoding='ret-int', data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8')):
     retrieval_labels = set()
     integration_labels = []
     max_seq_len = 0
     null_label = 0
     all_label = 0
+    sen_prpty_file = open( 'Data\\en\\gold\\sen_prpty_dev.txt', 'w', encoding="utf-8")
     for i, (sentence, fragments, unaligned) in enumerate(
             clf.read(data_file), start=1):
         max_seq_len = max(max_seq_len, len(sentence))
@@ -193,7 +196,8 @@ def encode(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding
         fragments = tuple(drs.sorted(f) for f in fragments)
         fragments = address.debruijnify(fragments)
         column_count = 4
-        print('\t'.join(('-BOS-',) * column_count))
+
+        # print('\t'.join(('-BOS-',) * column_count))
         for word, fragment in zip(sentence, fragments):
             fragment, syms = mask.mask_fragment(fragment)
             if encoding == 'ret-int':
@@ -211,10 +215,14 @@ def encode(encoding='ret-int', data_file = open('Data\\toy\\train.txt', encoding
                 json.dumps(fragment),
                 json.dumps(integration_label)
             ]
-            print(*fields, sep='\t')
-        print('\t'.join(('-EOS-',) * column_count))
-        print()
-    print(f'# of retrieval labels: {len(retrieval_labels)}', file=sys.stderr)
+    #         print(*fields, sep='\t')
+    #     print('\t'.join(('-EOS-',) * column_count))
+    #     print()
+    # print(f'# of retrieval labels: {len(retrieval_labels)}', file=sys.stderr)
+
+        print(fragments)
+        sen_prpty_file.write(ana_metrics2(fragments, i))
+
     if encoding == 'ret-int':
         maxxref = max(
             len(v)
