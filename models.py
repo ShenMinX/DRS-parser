@@ -11,13 +11,14 @@ class Linear_classifiers(nn.Module):
 
         self.dropout = nn.Dropout(dropout_rate)
     
-    def forward(self, embeded):
+    def forward(self, embeded, embeded2):
 
         inputs = self.dropout(embeded)
+        inputs2 = self.dropout(embeded2)
 
         output_syms = self.output_s(inputs)
-        output_frgs = self.output_f(inputs)
-        output_intergs = self.output_i(inputs)
+        output_frgs = self.output_f(inputs2)
+        output_intergs = self.output_i(inputs2)
 
         return output_syms, output_frgs, output_intergs
         

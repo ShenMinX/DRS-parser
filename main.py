@@ -77,11 +77,11 @@ def average_word_emb(emb, valid):
 if __name__ == '__main__':
 
     #train
-    lang = "de"
+    lang = "en"
 
-    train = False
+    train = True
 
-    save_checkpoint = False
+    save_checkpoint = True
 
     hyper_batch_size = 16
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # for en, de:
     words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\gold\\train.txt', optional_file='Data\\'+lang+'\\silver\\train.txt', optional_file2='Data\\'+lang+'\\bronze\\train.txt', language=lang)
     # for it, nl:
-    #words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
+    # words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
     
     bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
@@ -165,18 +165,19 @@ if __name__ == '__main__':
     bert_optimizer = AdamW(bert_model.parameters(), lr=learning_rate)
 
     ################ Load Checkpoints ###############################################################
-    try:
-        checkpoint = torch.load(model_path, map_location=device)
-        if fine_tune == True:
-            bert_model.load_state_dict(checkpoint['bert_model_state_dict'])
-            bert_optimizer.load_state_dict(checkpoint['bert_optimizer_state_dict'])
-        tagging_model.load_state_dict(checkpoint['tagging_model_state_dict'])       
-        optimizer.load_state_dict(checkpoint['tagging_optimizer_state_dict'])
-        old_epoch = checkpoint['epoch']
+    if (train == True and save_checkpoint == True) or (train == False and save_checkpoint == False):
+        try:
+            checkpoint = torch.load(model_path, map_location=device)
+            if fine_tune == True:
+                bert_model.load_state_dict(checkpoint['bert_model_state_dict'])
+                bert_optimizer.load_state_dict(checkpoint['bert_optimizer_state_dict'])
+            tagging_model.load_state_dict(checkpoint['tagging_model_state_dict'])       
+            optimizer.load_state_dict(checkpoint['tagging_optimizer_state_dict'])
+            old_epoch = checkpoint['epoch']
 
-    
-    except FileNotFoundError:
-        train = True
+        
+        except FileNotFoundError:
+            train = True
     #################################################################################################
 
     if train:
@@ -207,12 +208,18 @@ if __name__ == '__main__':
                     
                 embeddings = bert_outputs.hidden_states[7]
 
+                embeddings2 = bert_outputs.last_hidden_state
+
                 mask = pad_sequence([torch.ones(t.shape[0], dtype=torch.long).to(device) for t in target_s], batch_first=True, padding_value=0)
 
                 ###  average wordpiece embedding
                 valid_embeds = [
                     average_word_emb(embeds, valid)
                     for embeds, valid in zip(embeddings, valid_indices)]
+
+                valid_embeds2 = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings2, valid_indices)]
 
                 ###  initial wordpiece embedding
                 # valid_embeds = [
@@ -222,13 +229,14 @@ if __name__ == '__main__':
                 batch_size = len(valid_embeds)
 
                 padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+                padded_input2 = pad_sequence(valid_embeds2, batch_first=True, padding_value=0.0)
                 padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
                 padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
                 padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
 
 
-                sense_out, frg_out, inter_out = tagging_model(padded_input)
+                sense_out, frg_out, inter_out = tagging_model(padded_input, padded_input2)
 
                 batch_loss = 0.0
 
@@ -302,6 +310,7 @@ if __name__ == '__main__':
 
                 bert_outputs = bert_model(**bert_input)
                 embeddings = bert_outputs.hidden_states[7]
+                embeddings2 = bert_outputs.last_hidden_state
 
                 # valid_embeds = [
                 #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
@@ -311,16 +320,21 @@ if __name__ == '__main__':
                     average_word_emb(embeds, valid)
                     for embeds, valid in zip(embeddings, valid_indices)]
 
+                valid_embeds2 = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings2, valid_indices)]
+
                 batch_size = len(valid_embeds)
 
                 seq_len = [t.shape[0] for t in target_s]
 
                 padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+                padded_input2 = pad_sequence(valid_embeds2, batch_first=True, padding_value=0.0)
                 padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
                 padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
                 padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
-                sense_out, frg_out, inter_out = tagging_model(padded_input)
+                sense_out, frg_out, inter_out = tagging_model(padded_input, padded_input2)
 
                 sense_max = torch.argmax(sense_out, 2)
                 frg_max = torch.argmax(frg_out, 2)
