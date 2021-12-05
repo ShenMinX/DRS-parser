@@ -79,14 +79,14 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
     
 
     words, senses, fragment, integration_labels, tr_sents, tr_targets, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file = train_file, optional_file = train_file_op1, optional_file2 = train_file_op2, language=language)
-    with open(root_dir+'word_dict.txt', 'w') as word_dict:
-        json.dumps(words.__dict__, word_dict)
-    with open(root_dir+'senses_dict.txt', 'w') as senses_dict:
-        json.dumps(senses.__dict__, senses_dict)
-    with open(root_dir+'fragment_dict.txt', 'w') as fragment_dict:
-        json.dumps(fragment.__dict__, fragment_dict)
-    with open(root_dir+'integration_labels_dict.txt', 'w') as integration_labels_dict:
-        json.dumps(integration_labels.__dict__, integration_labels_dict)
+    # with open(root_dir+'word_dict.txt', 'w') as word_dict:
+    #     json.dump(words.__dict__, word_dict)
+    # with open(root_dir+'senses_dict.txt', 'w') as senses_dict:
+    #     json.dump(senses.__dict__, senses_dict)
+    # with open(root_dir+'fragment_dict.txt', 'w') as fragment_dict:
+    #     json.dump(fragment.__dict__, fragment_dict)
+    # with open(root_dir+'integration_labels_dict.txt', 'w') as integration_labels_dict:
+    #     json.dump(integration_labels.__dict__, integration_labels_dict)
 
     bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
@@ -269,7 +269,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
             correct_i = 0
             n_of_t = 0
             count = 1
-            _, _, _, _, te_sents, te_targets, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
+            _, _, _, _, te_sents, te_targets, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
             pred_file = open( out_f, 'w', encoding="utf-8")
             sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
