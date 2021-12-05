@@ -14,9 +14,9 @@ from error_eval import ana_metrics2
 
 class dictionary():
 
-    def __init__(self):
-        self.token_to_ix = {}
-        self.ix_to_token = {}
+    def __init__(self, token_to_ix, ix_to_token):
+        self.token_to_ix = token_to_ix
+        self.ix_to_token = ix_to_token
         self.insert_mark()
     
     def insert(self, token):
@@ -85,12 +85,10 @@ def mask_norename(fragments):
     return tuple(new_fragments), syms_list
 
 def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
-    words = dictionary()
-    senses = dictionary()
-    clauses = dictionary()
-    integration_labels = dictionary()
-
-    content_frg_idx = set([])
+    words = dictionary({},{})
+    senses = dictionary({},{})
+    clauses = dictionary({},{})
+    integration_labels = dictionary({},{})
 
     sents = []
     targets = []
@@ -151,8 +149,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
                     clauses.insert(tuple(fragment))
                     integration_labels.insert(dictlist_to_tuple(integration_label))
 
-                    if "work" in syms or "\"tom\"" in syms:
-                        content_frg_idx.add(clauses.token_to_ix[tuple(fragment)])
+
                     if word != "":
                         words.insert(word)
                         sent.append(word)
@@ -174,9 +171,9 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     print(f"# fragments: {len(clauses.token_to_ix)}")
     print(f"# integration_labels: {len(integration_labels.token_to_ix)}")
     if optional_file ==None:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, None, None
+        return words, senses, clauses, integration_labels, sents, targets, orgn_sents, None, None
     else:
-        return words, senses, clauses, integration_labels, sents, targets, content_frg_idx, orgn_sents, sents2, targets2
+        return words, senses, clauses, integration_labels, sents, targets, orgn_sents, sents2, targets2
 
 
 def encode(encoding='ret-int', data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8')):

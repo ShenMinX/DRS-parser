@@ -1,6 +1,7 @@
 import os
 import torch
 import click
+import json
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
 import torch.utils.data as data
@@ -21,17 +22,18 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 ############################################################################################################################################################################################################################################################
 # Train: 
-# python main.py -l en -t -e 10 -fi -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt
-# python main.py -l en -b 12 -t -e 10 -w 0 -lr 0.00015 -fi -s -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
+# python main.py train -l en -t -e 10 -fi -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt
+# python main.py train -l en -b 12 -t -e 10 -w 0 -lr 0.00015 -fi -s -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
 # Test: 
-# python main.py -l en -fi -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
+# python main.py train -l en -fi -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
+# python main.py test -l en -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt
 ############################################################################################################################################################################################################################################################
 
 @click.group()
 def main():
     pass
 
-@click.command("language")
+@main.command()
 @click.option("-l", "--language",type=click.Choice(['en', 'de','it', 'nl'], case_sensitive=False), help="en: English, de: German, it: Italian, nl: Dutch")
 @click.option('-b','--batch', type=int, default=16, help="Batch size")
 @click.option('-t','--train', is_flag=True, help='Train: true | Test: false')
@@ -46,8 +48,8 @@ def main():
 @click.option('-ft','--train_file', type=click.Path(exists=True), help="Train file path")
 @click.option('-f3','--train_file_op1', type=click.Path(exists=True), required=False, default=None, help="Optional 2nd train set path for train & finetuning")
 @click.option('-f4','--train_file_op2', type=click.Path(exists=True), required=False, default= None, help="Optional 3rd train set path for train & finetuning")
-def config(language, batch, train, epoch, num_warmup_steps, learning_rate, finetuning, save_checkpoint, model_file, dev_file, test_file, train_file, train_file_op1, train_file_op2):
-    
+def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetuning, save_checkpoint, model_file, dev_file, test_file, train_file, train_file_op1, train_file_op2):
+    """Train and Test"""
     middle_epoch = epoch/2
     old_epoch = 0
 
@@ -75,20 +77,24 @@ def config(language, batch, train, epoch, num_warmup_steps, learning_rate, finet
 
     start.record()
     
-    # for en, de:
-    words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file = train_file, optional_file = train_file_op1, optional_file2 = train_file_op2, language=language)
-    # for it, nl:
-    # words, senses, fragment, integration_labels, tr_sents, tr_targets, content_frg_idx, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file ='Data\\'+lang+'\\silver\\train.txt', optional_file='Data\\'+lang+'\\bronze\\train.txt', optional_file2=None, language=lang)
-    
-    bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
-    #model_path = 'Data\\'+lang+'\\model_paremeters.pth' # path of checkpoint of finetuned model
+    words, senses, fragment, integration_labels, tr_sents, tr_targets, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file = train_file, optional_file = train_file_op1, optional_file2 = train_file_op2, language=language)
+    with open(root_dir+'word_dict.txt', 'w') as word_dict:
+        json.dumps(words.__dict__, word_dict)
+    with open(root_dir+'senses_dict.txt', 'w') as senses_dict:
+        json.dumps(senses.__dict__, senses_dict)
+    with open(root_dir+'fragment_dict.txt', 'w') as fragment_dict:
+        json.dumps(fragment.__dict__, fragment_dict)
+    with open(root_dir+'integration_labels_dict.txt', 'w') as integration_labels_dict:
+        json.dumps(integration_labels.__dict__, integration_labels_dict)
+
+    bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
     model_name = bert_models[language]
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, orgn_sents, sents2, targets2)
+    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents, sents2, targets2)
 
     dataset_size = len(train_dataset)
     indices = list(range(dataset_size))
@@ -157,9 +163,6 @@ def config(language, batch, train, epoch, num_warmup_steps, learning_rate, finet
         if finetuning == True:
             scheduler2 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, len(train_dataset)*middle_epoch)
             scheduler4 = get_linear_schedule_with_warmup(bert_optimizer, num_warmup_steps, train_dataset.primary_size*(epoch - middle_epoch))
-
-        with torch.no_grad():
-            content_set = torch.LongTensor(list(train_dataset.content_frg_idx)).to(device)
 
         for e in range(epoch):
             total_loss = 0.0
@@ -270,7 +273,7 @@ def config(language, batch, train, epoch, num_warmup_steps, learning_rate, finet
             pred_file = open( out_f, 'w', encoding="utf-8")
             sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
-            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, content_frg_idx, orgn_sents)
+            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
 
             test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate)
 
@@ -342,9 +345,151 @@ def config(language, batch, train, epoch, num_warmup_steps, learning_rate, finet
             print("Sense Accurancy: ", correct_s/n_of_t)
             print("Fragment Accurancy: ", correct_f/n_of_t)
             print("intergration label Accurancy: ", correct_i/n_of_t)
-    return language, batch, train, epoch, num_warmup_steps, learning_rate, finetuning, save_checkpoint, model_file, dev_file, test_file, train_file, train_file_op1, train_file_op2
+  
+@main.command()
+@click.option("-l", "--language",type=click.Choice(['en', 'de','it', 'nl'], case_sensitive=False), help="en: English, de: German, it: Italian, nl: Dutch")
+@click.option('-b','--batch', type=int, default=16, help="Batch size")
+@click.option('-fm','--model_file', type=click.Path(exists=True), required=False, help="Provide model file path, and choose whether to save model. ")
+@click.option('-fd','--dev_file', type=click.Path(exists=True), help="Dev file path (optional)")
+@click.option('-f','--test_file', type=click.Path(exists=True), required=False, default=None, help="Test file path")
+def test(language, batch, model_file, dev_file, test_file):
+
+    f = open(dev_file)
+    root_dir=os.path.realpath(f.name)
+    f.close()
+    in_files = [dev_file]
+    out_files = [root_dir+'prediction_dev.txt']
+    out_files2 = [root_dir+'sen_prpty_dev.txt']
+    
+    if dev_file != None:
+        in_files.append(test_file)
+        out_files.append(root_dir+'prediction_test.txt')
+        out_files2.append(root_dir+'sen_prpty_test.txt')
+
+    def object_decoder(obj):
+        if '__type__' in obj and obj['__type__'] == 'dictionary':
+            return preprocess.dictionary(obj['token_to_ix'], obj['ix_to_token'])
+        return obj
+    
+    with open(root_dir+'word_dict.txt', 'r') as word_dict:
+        words = json.loads(word_dict, object_hook=object_decoder)
+    with open(root_dir+'senses_dict.txt', 'r') as senses_dict:
+        senses = json.loads(senses_dict, object_hook=object_decoder)
+    with open(root_dir+'fragment_dict.txt', 'r') as fragment_dict:
+        fragment = json.loads(fragment_dict, object_hook=object_decoder)
+    with open(root_dir+'integration_labels_dict.txt', 'r') as integration_labels_dict:
+        integration_labels = json.loads(integration_labels_dict, object_hook=object_decoder)
+
+    bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
+
+    model_name = bert_models[language]
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    bert_model = AutoModel.from_pretrained(model_name).to(device)
+
+    bert_model.config.output_hidden_states=True
+
+    tagging_model = Linear_classifiers(
+        embed_size = 768, 
+        syms_size = len(senses.token_to_ix), 
+        frgs_size = len(fragment.token_to_ix), 
+        intergs_size = len(integration_labels.token_to_ix),
+        dropout_rate = 0.2
+        ).to(device)
+
+    checkpoint = torch.load(model_file, map_location=device)
+
+    bert_model.load_state_dict(checkpoint['bert_model_state_dict'])
+
+    tagging_model.load_state_dict(checkpoint['tagging_model_state_dict'])       
 
 
+
+    for in_f, out_f, out_f2 in zip(in_files, out_files, out_files2):
+        with torch.no_grad():
+
+            print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
+            print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
+
+            correct_s = 0
+            correct_f = 0
+            correct_i = 0
+            n_of_t = 0
+            count = 1
+            _, _, _, _, te_sents, te_targets, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
+            pred_file = open( out_f, 'w', encoding="utf-8")
+            sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
+
+            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
+
+            test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate)
+
+            for idx, (bert_input, valid_indices, target_s, target_f, target_i, og_sents) in enumerate(test_loader):
+
+                bert_outputs = bert_model(**bert_input)
+                embeddings = bert_outputs.hidden_states[7]
+                embeddings2 = bert_outputs.last_hidden_state
+
+                # valid_embeds = [
+                #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
+                #     for embeds, valid in zip(embeddings, valid_indices)]
+
+                valid_embeds = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings, valid_indices)]
+
+                valid_embeds2 = [
+                    average_word_emb(embeds, valid)
+                    for embeds, valid in zip(embeddings2, valid_indices)]
+
+                batch_size = len(valid_embeds)
+
+                seq_len = [t.shape[0] for t in target_s]
+
+                padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
+                padded_input2 = pad_sequence(valid_embeds2, batch_first=True, padding_value=0.0)
+                padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
+                padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
+                padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
+
+                sense_out, frg_out, inter_out = tagging_model(padded_input, padded_input2)
+
+                sense_max = torch.argmax(sense_out, 2)
+                frg_max = torch.argmax(frg_out, 2)
+                inter_max = torch.argmax(inter_out, 2)
+
+                unpad_sense = [sense_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+                unpad_frg = [frg_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+                unpad_inter = [inter_max[i,:l].tolist() for i, l in enumerate(seq_len)]
+
+                sense_pred = [preprocess.ixs_to_tokens(senses.ix_to_token, seq) for seq in unpad_sense]
+                frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
+                inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
+
+                for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
+                    for s_idx in range(len(ps)):
+                        if ts[s_idx]==ps[s_idx]:
+                            correct_s +=1
+                        if tf[s_idx]==pf[s_idx]:
+                            correct_f +=1
+                        if ti[s_idx]==pi[s_idx]:
+                            correct_i +=1
+                    n_of_t += ts.shape[0]
+
+        
+            #cd DRS_parsing_3\evaluation
+            #python counter.py -f1 prediction_dev.txt -f2 dev.txt -prin -ms_file result_dev.txt -g clf_signature.yaml
+            #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
+
+                for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
+                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, language)
+                    #sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n") # for relation between number of words and fscore
+                    sen_prpty_file.write(ana_metrics(ana_clauses, count))  # for eval fscore of drs contains certain clause element                 
+                    count+=1
+            pred_file.close()
+            sen_prpty_file.close()
+    
 
 def my_collate(batch):
 
@@ -377,8 +522,7 @@ def average_word_emb(emb, valid):
 
 if __name__ == '__main__':
 
-    #train
-    config()
+    main()
 
 
 
