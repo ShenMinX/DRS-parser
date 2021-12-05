@@ -417,15 +417,15 @@ def test(language, batch, model_file, dev_file, test_file):
             correct_i = 0
             n_of_t = 0
             count = 1
-            _, _, _, _, te_sents, te_targets, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
+            _, _, _, _, te_sents, _, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
             pred_file = open( out_f, 'w', encoding="utf-8")
             sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
-            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
+            test_dataset = mydata.Dataset(te_sents,None, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
 
-            test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate)
+            test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate2)
 
-            for idx, (bert_input, valid_indices, target_s, target_f, target_i, og_sents) in enumerate(test_loader):
+            for idx, (bert_input, valid_indices, og_sents) in enumerate(test_loader):
 
                 bert_outputs = bert_model(**bert_input)
                 embeddings = bert_outputs.hidden_states[7]
@@ -445,13 +445,10 @@ def test(language, batch, model_file, dev_file, test_file):
 
                 batch_size = len(valid_embeds)
 
-                seq_len = [t.shape[0] for t in target_s]
+                seq_len = [ve.shape[0] for ve in valid_embeds]
 
                 padded_input = pad_sequence(valid_embeds, batch_first=True, padding_value=0.0)
                 padded_input2 = pad_sequence(valid_embeds2, batch_first=True, padding_value=0.0)
-                padded_sense = pad_sequence(target_s, batch_first=True, padding_value=0.0)
-                padded_frg = pad_sequence(target_f, batch_first=True, padding_value=0.0)
-                padded_inter = pad_sequence(target_i, batch_first=True, padding_value=0.0)
 
                 sense_out, frg_out, inter_out = tagging_model(padded_input, padded_input2)
 
@@ -466,16 +463,6 @@ def test(language, batch, model_file, dev_file, test_file):
                 sense_pred = [preprocess.ixs_to_tokens(senses.ix_to_token, seq) for seq in unpad_sense]
                 frg_pred = [preprocess.ixs_to_tokens(fragment.ix_to_token, seq) for seq in unpad_frg]
                 inter_pred = [preprocess.ixs_to_tokens(integration_labels.ix_to_token, seq) for seq in unpad_inter]
-
-                for ts, tf, ti, ps, pf, pi in zip(target_s, target_f, target_i, unpad_sense, unpad_frg, unpad_inter):
-                    for s_idx in range(len(ps)):
-                        if ts[s_idx]==ps[s_idx]:
-                            correct_s +=1
-                        if tf[s_idx]==pf[s_idx]:
-                            correct_f +=1
-                        if ti[s_idx]==pi[s_idx]:
-                            correct_i +=1
-                    n_of_t += ts.shape[0]
 
         
             #cd DRS_parsing_3\evaluation
@@ -510,6 +497,24 @@ def my_collate(batch):
     orgn_sent = [item[7] for item in batch]
 
     return bert_input, valid_indices, target_s, target_f, target_i, orgn_sent
+
+def my_collate2(batch):
+
+    input_ids = [item[0] for item in batch]
+    token_type_ids = [item[1] for item in batch]
+    attention_mask = [item[2] for item in batch]
+    valid_indices = [item[3] for item in batch]
+                
+    input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0.0)
+    token_type_ids = pad_sequence(token_type_ids, batch_first=True, padding_value=0.0)
+    attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0.0)
+
+    bert_input = {'input_ids':input_ids, 'token_type_ids':token_type_ids, 'attention_mask':attention_mask}
+
+
+    orgn_sent = [item[4] for item in batch]
+
+    return bert_input, valid_indices, orgn_sent
 
 
 

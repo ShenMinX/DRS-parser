@@ -92,21 +92,31 @@ class Dataset(data.Dataset):
         
         if index >= self.primary_size:
             sent = self.sents2[index-self.primary_size]
-            target = self.targets2[index-self.primary_size]
+            if self.targets2!=None:
+                target = self.targets2[index-self.primary_size]
+            else:
+                target = None            
             orgn_sent = []
         else:
             sent = self.sents[index]
-            target = self.targets[index]
+            if self.targets!=None:
+                target = self.targets[index]
+            else:
+                target = None
             orgn_sent = self.orgn_sents[index]
 
-        target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
-                self.sense_to_ix, [t[0] for t in target]), (
-                    self.fragment_to_ix, [t[1] for t in target]), (
-                        self.itergration_to_ix, [t[2] for t in target])]))
+        if target != None:
+            target_s, target_f, traget_i = list(map(lambda x: preprocess.tokens_to_ixs(x[0], x[1]),[(
+                    self.sense_to_ix, [t[0] for t in target]), (
+                        self.fragment_to_ix, [t[1] for t in target]), (
+                            self.itergration_to_ix, [t[2] for t in target])]))
                         
         input_ids, token_type_ids, attention_mask, valid_indices = valid_tokenizing(sent, self.tokenizer, self.device)
 
-        return (input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, traget_i, orgn_sent)
+        if target != None:
+            return (input_ids, token_type_ids, attention_mask, valid_indices, target_s, target_f, traget_i, orgn_sent)
+        else:
+            return (input_ids, token_type_ids, attention_mask, valid_indices, orgn_sent)
 
 def my_collate(batch):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
