@@ -43,7 +43,10 @@ def replace_constants(fragments):
 
 def replace_constants_rev(fragments):
     """Replace ARG1 referents introduced by constant clauses by constants."""
-    ref_constant_map = {c[2]: c[1] for f in fragments for c in f if drs.is_constant(c[1])}
+    try:
+        ref_constant_map = {c[2]: c[1] for f in fragments for c in f if drs.is_constant(c[1])}
+    except IndexError:
+        print(fragments)
     def replace(clause):
         if len(clause) == 4 and clause[3] in ref_constant_map:
             clause = (clause[0], clause[1], clause[2], ref_constant_map[clause[3]])

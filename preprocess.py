@@ -15,9 +15,9 @@ from error_eval import ana_metrics2
 class dictionary():
 
     def __init__(self, token_to_ix, ix_to_token):
-        self.insert_mark()
         self.token_to_ix = token_to_ix
         self.ix_to_token = ix_to_token
+        self.insert_mark()
         
     
     def insert(self, token):
@@ -28,8 +28,9 @@ class dictionary():
 
     def insert_mark(self):
         marks = ["[PAD]","-EOS-","-BOS-","[UNK]"]
-        for m in marks:
-            self.insert(m)   
+        for i in range(len(marks)):
+            self.token_to_ix[marks[i]] = i
+            self.ix_to_token[i] = marks[i]   
 
 def tokens_to_ixs(token_to_ix, tokens):
     out = []
@@ -48,6 +49,9 @@ def ixs_to_tokens(ix_to_token, ixs):
 
 def dictlist_to_tuple(dict):
     return tuple((x, tuple(z for z in y)) for x, y in dict.items())
+
+def lists_to_tuple(lists):
+    return tuple(tuple(l) for l in lists)
 
 VARAIBLE_PATTERN = re.compile(r'(?P<type>[benpstx])(?P<index>\d+)$')
 
@@ -85,6 +89,17 @@ def mask_norename(fragments):
         syms_list.append(syms)
     return tuple(new_fragments), syms_list
 
+def get_unks(language):
+    unks={}
+    if language in ["en","de","nl","it"]:     
+        print("lang: "+ language)  
+        with open('Data\\'+language+'\\all_unk.txt', encoding = 'utf-8') as unk_file:
+            for entry in unk_file:
+                entry_list = entry.rstrip("\n").split("\t")
+                if len(entry_list)==3 and entry_list[2] !='':
+                    unks[entry_list[1]]=entry_list[2]
+    return unks
+
 def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_file = None, optional_file2 = None, language = "en"):
     words = dictionary({},{})
     senses = dictionary({},{})
@@ -99,16 +114,7 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
 
     orgn_sents = []
 
-    unks = {}
-
-    if language in ["en","de","nl","it"]:     
-        print("lang: "+ language)  
-        unk_file = open('Data\\'+language+'\\all_unk.txt', encoding = 'utf-8')
-        for entry in unk_file:
-            entry_list = entry.rstrip("\n").split("\t")
-            if len(entry_list)==3 and entry_list[2] !='':
-                unks[entry_list[1]]=entry_list[2]
-        unk_file.close()
+    unks = get_unks(language)
 
     files = [primary_file]
     if optional_file != None:
@@ -176,6 +182,22 @@ def encode2(encoding='ret-int', primary_file = 'Data\\toy\\train.txt', optional_
     else:
         return words, senses, clauses, integration_labels, sents, targets, orgn_sents, sents2, targets2
 
+def easy_encode(path = 'Data\\toy\\train.txt', language = "en"):
+    orgn_sents = []
+    sents = []
+    unks = get_unks(language)
+    with open(path, 'r', encoding="utf-8") as file:
+        for line in file:
+            orgn_sent = line.split()
+            orgn_sents.append(orgn_sent)
+            sent = []
+            for w in orgn_sent:
+                for c in w:
+                    if c in unks:
+                        w = w.replace(c, unks[c])
+                        sent.append(2)
+            sents.append(sent)
+    return sents, orgn_sents
 
 def encode(encoding='ret-int', data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8')):
     retrieval_labels = set()

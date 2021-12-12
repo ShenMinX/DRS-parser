@@ -63,7 +63,7 @@ def read_lemmas(blocks):
     return tuple(l.rstrip() for l in blocks[:-1])
 
 
-def decode(sentence, symbols, fragments, integration_actions, senses_vocab, i, outfile, lang = 'en',encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
+def decode(sentence, symbols, fragments, integration_actions, i, outfile, lang = 'en',encoding='ret-int', gold_symbols=True, roles=None, lemmas=None, mode=3):
     checker = drs.Checker(mode)
     lemmatizer = WordNetLemmatizer()
     if roles:

@@ -66,7 +66,7 @@ def valid_tokenizing(sent, tokenizer, device):
 
 class Dataset(data.Dataset):
 
-    def __init__(self, sents, targets, word_to_ix, sense_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device,  orgn_sents, sents2 = None, targets2 = None): 
+    def __init__(self, sents, targets, sense_to_ix, fragment_to_ix, itergration_to_ix, tokenizer, device,  orgn_sents, sents2 = None, targets2 = None): 
         'Initialization'
         self.sents = sents
         self.sents2 = sents2
@@ -74,7 +74,6 @@ class Dataset(data.Dataset):
         self.targets2 = targets2
         self.primary_size = len(sents)
         self.orgn_sents = orgn_sents
-        #self.word_to_ix = word_to_ix
         self.sense_to_ix = sense_to_ix
         self.fragment_to_ix = fragment_to_ix
         self.itergration_to_ix = itergration_to_ix

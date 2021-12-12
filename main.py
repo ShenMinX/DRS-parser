@@ -24,9 +24,10 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 # Train: 
 # python main.py train -l en -t -e 10 -fi -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt
 # python main.py train -l en -b 12 -t -e 10 -w 0 -lr 0.00015 -fi -s -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
+# ipython -- main.py train -l en -b 12 -t -e 10 -w 0 -lr 0.00015 -fi -s -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\dev.txt -ft Data\\en\\gold\\dev.txt -f3 Data\\en\\gold\\dev.txt -f4 Data\\en\\gold\\dev.txt 
 # Test: 
-# python main.py train -l en -fi -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
-# python main.py test -l en -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt
+# python main.py train -l en -fi -fm Data\\en\\model_paremeters.pth -fv Data\\en\\gold\\label_dict.txt -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt -ft Data\\en\\gold\\train.txt -f3 Data\\en\\silver\\train.txt -f4 Data\\en\\bronze\\train.txt
+# python main.py test -l en -fm Data\\en\\model_paremeters.pth -fv Data\\en\\gold\\label_dict.txt -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt
 ############################################################################################################################################################################################################################################################
 
 def save_labels(path, senses, fragments, integration_labels):
@@ -34,9 +35,9 @@ def save_labels(path, senses, fragments, integration_labels):
     labels = {}
     senses_token_to_ix = {}
     senses_ix_to_token = {}
-    for s1, v1, v2, s2 in zip(senses.token_to_ix, senses.ix_to_token):
+    for (s1, v1), (v2, s2) in zip(senses.token_to_ix.items(), senses.ix_to_token.items()):
         if s1 not in marks:
-            senses_token_to_ix[tuple_to_dictlist(s1)] = v1
+            senses_token_to_ix[json.dumps(tuple_to_dictlist(s1))] = v1
         if s2 not in marks:
             senses_ix_to_token[v2] = tuple_to_dictlist(s2)
     labels["senses_token_to_ix"] = senses_token_to_ix
@@ -44,9 +45,9 @@ def save_labels(path, senses, fragments, integration_labels):
 
     fragments_token_to_ix = {}
     fragments_ix_to_token = {}
-    for f1, v1, v2, f2 in zip(fragments.token_to_ix, fragments.ix_to_token):
+    for (f1, v1), (v2, f2) in zip(fragments.token_to_ix.items(), fragments.ix_to_token.items()):
         if f1 not in marks:
-            fragments_token_to_ix[tuple_to_list(f1)] = v1
+            fragments_token_to_ix[json.dumps(tuple_to_list(f1))] = v1
         if f2 not in marks:
             fragments_ix_to_token[v2] = tuple_to_list(f2)
     labels["fragments_token_to_ix"] = fragments_token_to_ix
@@ -54,9 +55,9 @@ def save_labels(path, senses, fragments, integration_labels):
 
     integration_labels_token_to_ix = {}
     integration_labels_ix_to_token = {}
-    for i1, v1, v2, i2 in zip(integration_labels.token_to_ix, integration_labels.ix_to_token):
+    for (i1, v1), (v2, i2) in zip(integration_labels.token_to_ix.items(), integration_labels.ix_to_token.items()):
         if i1 not in marks:
-            integration_labels_token_to_ix[tuple_to_dictlist(i1)] = v1
+            integration_labels_token_to_ix[json.dumps(tuple_to_dictlist(i1))] = v1
         if i2 not in marks:
             integration_labels_ix_to_token[v2] = tuple_to_dictlist(i2)
     labels["integration_labels_token_to_ix"] = integration_labels_token_to_ix
@@ -73,23 +74,23 @@ def load_labels(path):
         labels = json.loads(labels_in)
         senses_token_to_ix = {}
         senses_ix_to_token = {}
-        for s1, v1, v2, s2 in zip(labels["senses_token_to_ix"], labels["senses_ix_to_token"]):
-            senses_token_to_ix[preprocess.dictlist_to_tuple(s1)] = v1
-            senses_ix_to_token[v2] = preprocess.dictlist_to_tuple(s2)
+        for (s1, v1), (v2, s2) in zip(labels["senses_token_to_ix"].items(), labels["senses_ix_to_token"].items()):
+            senses_token_to_ix[preprocess.dictlist_to_tuple(json.loads(s1))] = v1
+            senses_ix_to_token[int(v2)] = preprocess.dictlist_to_tuple(s2)
         senses = preprocess.dictionary(senses_token_to_ix, senses_ix_to_token)
 
         fragments_token_to_ix = {}
         fragments_ix_to_token = {}
-        for f1, v1, v2, f2 in zip(labels["fragments_token_to_ix"], labels["fragments_ix_to_token"]):
-            fragments_token_to_ix[tuple(f1)] = v1
-            fragments_ix_to_token[v2] = tuple(f2)
+        for (f1, v1), (v2, f2) in zip(labels["fragments_token_to_ix"].items(), labels["fragments_ix_to_token"].items()):
+            fragments_token_to_ix[preprocess.lists_to_tuple(json.loads(f1))] = v1
+            fragments_ix_to_token[int(v2)] = preprocess.lists_to_tuple(f2)
         fragments = preprocess.dictionary(fragments_token_to_ix, fragments_ix_to_token)
 
         integration_labels_token_to_ix = {}
         integration_labels_ix_to_token = {}
-        for i1, v1, v2, i2 in zip(labels["integration_labels_token_to_ix"], labels["integration_labels_ix_to_token"]):
-            integration_labels_token_to_ix[preprocess.dictlist_to_tuple(i1)] = v1
-            integration_labels_ix_to_token[v2] = preprocess.dictlist_to_tuple(i2)
+        for (i1, v1), (v2, i2) in zip(labels["integration_labels_token_to_ix"].items(), labels["integration_labels_ix_to_token"].items()):
+            integration_labels_token_to_ix[preprocess.dictlist_to_tuple(json.loads(i1))] = v1
+            integration_labels_ix_to_token[int(v2)] = preprocess.dictlist_to_tuple(i2)
         integration_labels = preprocess.dictionary(integration_labels_token_to_ix, integration_labels_ix_to_token)
     
     return senses, fragments, integration_labels
@@ -108,7 +109,7 @@ def main():
 @click.option('-lr','--learning_rate', type=float, default=0.00015, help="Learning rate of training")
 @click.option('-fi','--finetuning', is_flag=True, help="Train BERT parameters or not")
 @click.option('-s','--save_checkpoint', is_flag=True, help='True: save, False: no save')
-@click.option('-fm','--model_file', type=click.Path(exists=True), required=False, help="Provide model file path, and choose whether to save model. ")
+@click.option('-fm','--model_file', type=click.Path(exists=False), required=False, help="Provide model file path")
 @click.option('-fd','--dev_file', type=click.Path(exists=True), help="Dev file path (optional)")
 @click.option('-f','--test_file', type=click.Path(exists=True), required=False, default=None, help="Test file path")
 @click.option('-ft','--train_file', type=click.Path(exists=True), help="Train file path")
@@ -125,16 +126,16 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
         middle_epoch = epoch
  
     f = open(dev_file)
-    root_dir=os.path.realpath(f.name)
+    root_dir=os.path.dirname(f.name)
     f.close()
     in_files = [dev_file]
-    out_files = [root_dir+'prediction_dev.txt']
-    out_files2 = [root_dir+'sen_prpty_dev.txt', ]
+    out_files = [root_dir+'\\prediction_dev.txt']
+    out_files2 = [root_dir+'\\sen_prpty_dev.txt', ]
     
     if dev_file != None:
         in_files.append(test_file)
-        out_files.append(root_dir+'prediction_test.txt')
-        out_files2.append(root_dir+'sen_prpty_test.txt')
+        out_files.append(root_dir+'\\prediction_test.txt')
+        out_files2.append(root_dir+'\\sen_prpty_test.txt')
 
 
 
@@ -146,9 +147,9 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
 
     words, senses, fragment, integration_labels, tr_sents, tr_targets, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file = train_file, optional_file = train_file_op1, optional_file2 = train_file_op2, language=language)
     if save_checkpoint:
-        save_labels(root_dir+'label_dict.txt')
-    with open(root_dir+'word_dict.txt', 'w') as word_dict:
-        json.dump(words.__dict__, word_dict)
+        save_labels(root_dir+'\\label_dict.txt', senses, fragment, integration_labels)
+    # with open(root_dir+'word_dict.txt', 'w') as word_dict:
+    #     json.dump(words.__dict__, word_dict)
     # with open(root_dir+'senses_dict.txt', 'w') as senses_dict:
     #     json.dump(senses.__dict__, senses_dict)
     # with open(root_dir+'fragment_dict.txt', 'w') as fragment_dict:
@@ -162,7 +163,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
     
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    train_dataset = mydata.Dataset(tr_sents, tr_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents, sents2, targets2)
+    train_dataset = mydata.Dataset(tr_sents, tr_targets, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents, sents2, targets2)
 
     dataset_size = len(train_dataset)
     indices = list(range(dataset_size))
@@ -341,7 +342,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
             pred_file = open( out_f, 'w', encoding="utf-8")
             sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
-            test_dataset = mydata.Dataset(te_sents,te_targets, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
+            test_dataset = mydata.Dataset(te_sents,te_targets, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
 
             test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate)
 
@@ -403,7 +404,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
             #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
-                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, language)
+                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], count, pred_file, language)
                     #sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n") # for relation between number of words and fscore
                     sen_prpty_file.write(ana_metrics(ana_clauses, count))  # for eval fscore of drs contains certain clause element                 
                     count+=1
@@ -417,32 +418,34 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
 @main.command()
 @click.option("-l", "--language",type=click.Choice(['en', 'de','it', 'nl'], case_sensitive=False), help="en: English, de: German, it: Italian, nl: Dutch")
 @click.option('-b','--batch', type=int, default=16, help="Batch size")
-@click.option('-fm','--model_file', type=click.Path(exists=True), required=False, help="Provide model file path, and choose whether to save model. ")
+@click.option('-ez','--easy_encode', is_flag=True, help=' Preprocess text file | Preprocesses PMB file')
+@click.option('-fm','--model_file', type=click.Path(exists=True), required=True, help="Provide model file path")
+@click.option('-fv','--label_dict', type=click.Path(exists=True), required=True, help="Provide path of label dictionary file")
 @click.option('-fd','--dev_file', type=click.Path(exists=True), help="Dev file path (optional)")
-@click.option('-f','--test_file', type=click.Path(exists=True), required=False, default=None, help="Test file path")
-def test(language, batch, model_file, dev_file, test_file):
+@click.option('-f','--test_file', type=click.Path(exists=False), required=False, default=None, help="Test file path")
+def test(language, batch, easy_encode, model_file, label_dict, dev_file, test_file):
 
     f = open(dev_file)
-    root_dir=os.path.realpath(f.name)
+    root_dir=os.path.dirname(f.name)
     f.close()
     in_files = [dev_file]
-    out_files = [root_dir+'prediction_dev.txt']
-    out_files2 = [root_dir+'sen_prpty_dev.txt']
+    out_files = [root_dir+'\\prediction_dev.txt']
+    out_files2 = [root_dir+'\\sen_prpty_dev.txt']
     
     if dev_file != None:
         in_files.append(test_file)
-        out_files.append(root_dir+'prediction_test.txt')
-        out_files2.append(root_dir+'sen_prpty_test.txt')
+        out_files.append(root_dir+'\\prediction_test.txt')
+        out_files2.append(root_dir+'\\sen_prpty_test.txt')
 
-    def object_decoder(obj):
-        if '__type__' in obj and obj['__type__'] == 'dictionary':
-            return preprocess.dictionary(obj['token_to_ix'], obj['ix_to_token'])
-        return obj
+    # def object_decoder(obj):
+    #     if '__type__' in obj and obj['__type__'] == 'dictionary':
+    #         return preprocess.dictionary(obj['token_to_ix'], obj['ix_to_token'])
+    #     return obj
     
-    with open(root_dir+'word_dict.txt', 'r') as word_dict:
-        words = json.loads(word_dict, object_hook=object_decoder)
+    # with open(root_dir+'word_dict.txt', 'r') as word_dict:
+    #     words = json.loads(word_dict, object_hook=object_decoder)
 
-    senses, fragment, integration_labels = load_labels(root_dir+'label_dict.txt')
+    senses, fragment, integration_labels = load_labels(label_dict)
 
     bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
@@ -476,13 +479,15 @@ def test(language, batch, model_file, dev_file, test_file):
             print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
             print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
 
- 
             count = 1
-            _, _, _, _, te_sents, _, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
+            if easy_encode:
+                te_sents, orgn_sents = preprocess.easy_encode(file = in_f,language = language)
+            else:
+                _, _, _, _, te_sents, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
             pred_file = open( out_f, 'w', encoding="utf-8")
             sen_prpty_file = open( out_f2, 'w', encoding="utf-8")
 
-            test_dataset = mydata.Dataset(te_sents,None, words.token_to_ix, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
+            test_dataset = mydata.Dataset(te_sents,None, senses.token_to_ix, fragment.token_to_ix, integration_labels.token_to_ix, tokenizer, device, orgn_sents)
 
             test_loader = data.DataLoader(dataset=test_dataset, batch_size=batch, shuffle=False, collate_fn=my_collate2)
 
@@ -531,7 +536,7 @@ def test(language, batch, model_file, dev_file, test_file):
             #python counter.py -f1 prediction_test.txt -f2 test.txt -prin -ms_file result_test.txt -g clf_signature.yaml
 
                 for sen, tar_s, tar_f, tar_i in zip(og_sents,sense_pred,frg_pred,inter_pred):
-                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], words.token_to_ix, count, pred_file, language)
+                    ana_clauses = decode(sen, [tuple_to_dictlist(t_s) for t_s in tar_s], [tuple_to_list(t_f) for t_f in tar_f], [tuple_to_iterlabels(t_i) for t_i in tar_i], count, pred_file, language)
                     #sen_prpty_file.write(str(count)+"\t"+str(len(sen))+"\n") # for relation between number of words and fscore
                     sen_prpty_file.write(ana_metrics(ana_clauses, count))  # for eval fscore of drs contains certain clause element                 
                     count+=1
