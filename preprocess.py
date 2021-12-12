@@ -15,9 +15,10 @@ from error_eval import ana_metrics2
 class dictionary():
 
     def __init__(self, token_to_ix, ix_to_token):
+        self.insert_mark()
         self.token_to_ix = token_to_ix
         self.ix_to_token = ix_to_token
-        self.insert_mark()
+        
     
     def insert(self, token):
         if token not in self.token_to_ix:

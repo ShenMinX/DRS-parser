@@ -1,4 +1,5 @@
 import torch
+import json
 import clf
 import re
 import drs
@@ -6,6 +7,8 @@ import string
 import transformers
 from tokenizers import BertWordPieceTokenizer
 from transformers import BertTokenizer, BertModel, BertTokenizerFast, AutoTokenizer, AutoModel
+
+import preprocess
 
 
 
@@ -53,7 +56,15 @@ def make_unk_list(tokenizer,lang, quality =["bronze", "silver"]):
             f2.write(str(idx)+"\t"+el[0]+"\t"+el[1]+"\n")
         f2.close()
 
- 
+def dictlist_to_tuple(dict):
+    return tuple((x, tuple(z for z in y)) for x, y in dict.items())
+
+def tuple_to_iterlabels(tup): 
+    try:
+        return dict((x, list(y)) for x, y in tup)
+    except ValueError:
+        return  {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": []}
+
 
 
 if __name__ == '__main__':
@@ -65,11 +76,36 @@ if __name__ == '__main__':
     #de: "dbmdz/bert-base-german-cased"
     #it: "dbmdz/bert-base-italian-cased"
 
-    languages = {"en": "bert-base-cased", "nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
-    for lang, model_name in languages.items():
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        make_unk_list(tokenizer, lang)
+    # languages = {"en": "bert-base-cased", "nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
+    # for lang, model_name in languages.items():
+    #     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    #     make_unk_list(tokenizer, lang)
 
+    tt = {"b": [], "e": [], "n": [], "p": [], "s": [], "t": [], "x": [-1]}
+    tj = json.dumps(tt)
+    print(tj)
+    t0 = {tj:0}
+    tt2 = json.dumps(t0)
+    tt3 = json.loads(tt2)
+    for k, v in tt3.items():
+        tt4 = json.loads(k)
+        tt5 = dictlist_to_tuple(tt4)
+        print(tt5)
+        print(json.dumps(tt5))
+        print(tuple_to_iterlabels(tt5))
+
+    with open('Data\\en\\gold\\test_label.txt', 'w') as word_dict:
+        json.dump(tt2, word_dict)
+    
+    with open('Data\\en\\gold\\test_label.txt', 'r') as word_dict2:
+        tt6 = json.load(word_dict2)
+        tt7 = json.loads(tt6)
+    print(json.loads(tt6))
+    print(json.loads(json.dumps(json.loads(tt6))))
+    for k, v in tt7.items():
+
+        print(k)
+    
 
     # sent = '" ẽ " is a ẽ.ẽ side ẽẽ letter in ẽ ẽ the the？ ẽ Guarani alphabet？'.split(" ")
     # trag = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 22]

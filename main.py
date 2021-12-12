@@ -29,6 +29,72 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 # python main.py test -l en -fm Data\\en\\model_paremeters.pth -fd Data\\en\\gold\\dev.txt -f Data\\en\\gold\\test.txt
 ############################################################################################################################################################################################################################################################
 
+def save_labels(path, senses, fragments, integration_labels):
+    marks = ["[PAD]","-EOS-","-BOS-","[UNK]"]
+    labels = {}
+    senses_token_to_ix = {}
+    senses_ix_to_token = {}
+    for s1, v1, v2, s2 in zip(senses.token_to_ix, senses.ix_to_token):
+        if s1 not in marks:
+            senses_token_to_ix[tuple_to_dictlist(s1)] = v1
+        if s2 not in marks:
+            senses_ix_to_token[v2] = tuple_to_dictlist(s2)
+    labels["senses_token_to_ix"] = senses_token_to_ix
+    labels["senses_ix_to_token"] = senses_ix_to_token
+
+    fragments_token_to_ix = {}
+    fragments_ix_to_token = {}
+    for f1, v1, v2, f2 in zip(fragments.token_to_ix, fragments.ix_to_token):
+        if f1 not in marks:
+            fragments_token_to_ix[tuple_to_list(f1)] = v1
+        if f2 not in marks:
+            fragments_ix_to_token[v2] = tuple_to_list(f2)
+    labels["fragments_token_to_ix"] = fragments_token_to_ix
+    labels["fragments_ix_to_token"] = fragments_ix_to_token
+
+    integration_labels_token_to_ix = {}
+    integration_labels_ix_to_token = {}
+    for i1, v1, v2, i2 in zip(integration_labels.token_to_ix, integration_labels.ix_to_token):
+        if i1 not in marks:
+            integration_labels_token_to_ix[tuple_to_dictlist(i1)] = v1
+        if i2 not in marks:
+            integration_labels_ix_to_token[v2] = tuple_to_dictlist(i2)
+    labels["integration_labels_token_to_ix"] = integration_labels_token_to_ix
+    labels["integration_labels_ix_to_token"] = integration_labels_ix_to_token
+
+    out = json.dumps(labels)
+
+    with open(path, 'w') as labels_dict:
+        json.dump(out, labels_dict)
+
+def load_labels(path):
+    with open(path, 'r') as labels_dict:
+        labels_in = json.load(labels_dict)
+        labels = json.loads(labels_in)
+        senses_token_to_ix = {}
+        senses_ix_to_token = {}
+        for s1, v1, v2, s2 in zip(labels["senses_token_to_ix"], labels["senses_ix_to_token"]):
+            senses_token_to_ix[preprocess.dictlist_to_tuple(s1)] = v1
+            senses_ix_to_token[v2] = preprocess.dictlist_to_tuple(s2)
+        senses = preprocess.dictionary(senses_token_to_ix, senses_ix_to_token)
+
+        fragments_token_to_ix = {}
+        fragments_ix_to_token = {}
+        for f1, v1, v2, f2 in zip(labels["fragments_token_to_ix"], labels["fragments_ix_to_token"]):
+            fragments_token_to_ix[tuple(f1)] = v1
+            fragments_ix_to_token[v2] = tuple(f2)
+        fragments = preprocess.dictionary(fragments_token_to_ix, fragments_ix_to_token)
+
+        integration_labels_token_to_ix = {}
+        integration_labels_ix_to_token = {}
+        for i1, v1, v2, i2 in zip(labels["integration_labels_token_to_ix"], labels["integration_labels_ix_to_token"]):
+            integration_labels_token_to_ix[preprocess.dictlist_to_tuple(i1)] = v1
+            integration_labels_ix_to_token[v2] = preprocess.dictlist_to_tuple(i2)
+        integration_labels = preprocess.dictionary(integration_labels_token_to_ix, integration_labels_ix_to_token)
+    
+    return senses, fragments, integration_labels
+    
+
 @click.group()
 def main():
     pass
@@ -79,8 +145,10 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
     
 
     words, senses, fragment, integration_labels, tr_sents, tr_targets, orgn_sents, sents2, targets2 = preprocess.encode2(primary_file = train_file, optional_file = train_file_op1, optional_file2 = train_file_op2, language=language)
-    # with open(root_dir+'word_dict.txt', 'w') as word_dict:
-    #     json.dump(words.__dict__, word_dict)
+    if save_checkpoint:
+        save_labels(root_dir+'label_dict.txt')
+    with open(root_dir+'word_dict.txt', 'w') as word_dict:
+        json.dump(words.__dict__, word_dict)
     # with open(root_dir+'senses_dict.txt', 'w') as senses_dict:
     #     json.dump(senses.__dict__, senses_dict)
     # with open(root_dir+'fragment_dict.txt', 'w') as fragment_dict:
@@ -373,12 +441,8 @@ def test(language, batch, model_file, dev_file, test_file):
     
     with open(root_dir+'word_dict.txt', 'r') as word_dict:
         words = json.loads(word_dict, object_hook=object_decoder)
-    with open(root_dir+'senses_dict.txt', 'r') as senses_dict:
-        senses = json.loads(senses_dict, object_hook=object_decoder)
-    with open(root_dir+'fragment_dict.txt', 'r') as fragment_dict:
-        fragment = json.loads(fragment_dict, object_hook=object_decoder)
-    with open(root_dir+'integration_labels_dict.txt', 'r') as integration_labels_dict:
-        integration_labels = json.loads(integration_labels_dict, object_hook=object_decoder)
+
+    senses, fragment, integration_labels = load_labels(root_dir+'label_dict.txt')
 
     bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
 
@@ -412,10 +476,7 @@ def test(language, batch, model_file, dev_file, test_file):
             print("Encoder Parameters:",sum([param.nelement() for param in bert_model.parameters()]))
             print("Decoder Parameters:",sum([param.nelement() for param in tagging_model.parameters()]))
 
-            correct_s = 0
-            correct_f = 0
-            correct_i = 0
-            n_of_t = 0
+ 
             count = 1
             _, _, _, _, te_sents, _, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
             pred_file = open( out_f, 'w', encoding="utf-8")
