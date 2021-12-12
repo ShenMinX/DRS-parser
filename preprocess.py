@@ -195,7 +195,7 @@ def easy_encode(path = 'Data\\toy\\train.txt', language = "en"):
                 for c in w:
                     if c in unks:
                         w = w.replace(c, unks[c])
-                        sent.append(2)
+                sent.append(w)
             sents.append(sent)
     return sents, orgn_sents
 

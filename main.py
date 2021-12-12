@@ -111,7 +111,7 @@ def main():
 @click.option('-s','--save_checkpoint', is_flag=True, help='True: save, False: no save')
 @click.option('-fm','--model_file', type=click.Path(exists=False), required=False, help="Provide model file path")
 @click.option('-fd','--dev_file', type=click.Path(exists=True), help="Dev file path (optional)")
-@click.option('-f','--test_file', type=click.Path(exists=True), required=False, default=None, help="Test file path")
+@click.option('-f','--test_file', type=click.Path(exists=True), required=False, help="Test file path")
 @click.option('-ft','--train_file', type=click.Path(exists=True), help="Train file path")
 @click.option('-f3','--train_file_op1', type=click.Path(exists=True), required=False, default=None, help="Optional 2nd train set path for train & finetuning")
 @click.option('-f4','--train_file_op2', type=click.Path(exists=True), required=False, default= None, help="Optional 3rd train set path for train & finetuning")
@@ -132,7 +132,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
     out_files = [root_dir+'\\prediction_dev.txt']
     out_files2 = [root_dir+'\\sen_prpty_dev.txt', ]
     
-    if dev_file != None:
+    if test_file != None:
         in_files.append(test_file)
         out_files.append(root_dir+'\\prediction_test.txt')
         out_files2.append(root_dir+'\\sen_prpty_test.txt')
@@ -422,7 +422,7 @@ def train(language, batch, train, epoch, num_warmup_steps, learning_rate, finetu
 @click.option('-fm','--model_file', type=click.Path(exists=True), required=True, help="Provide model file path")
 @click.option('-fv','--label_dict', type=click.Path(exists=True), required=True, help="Provide path of label dictionary file")
 @click.option('-fd','--dev_file', type=click.Path(exists=True), help="Dev file path (optional)")
-@click.option('-f','--test_file', type=click.Path(exists=False), required=False, default=None, help="Test file path")
+@click.option('-f','--test_file', type=click.Path(exists=False), required=False, help="Test file path")
 def test(language, batch, easy_encode, model_file, label_dict, dev_file, test_file):
 
     f = open(dev_file)
@@ -432,7 +432,7 @@ def test(language, batch, easy_encode, model_file, label_dict, dev_file, test_fi
     out_files = [root_dir+'\\prediction_dev.txt']
     out_files2 = [root_dir+'\\sen_prpty_dev.txt']
     
-    if dev_file != None:
+    if test_file != None:
         in_files.append(test_file)
         out_files.append(root_dir+'\\prediction_test.txt')
         out_files2.append(root_dir+'\\sen_prpty_test.txt')
@@ -481,7 +481,7 @@ def test(language, batch, easy_encode, model_file, label_dict, dev_file, test_fi
 
             count = 1
             if easy_encode:
-                te_sents, orgn_sents = preprocess.easy_encode(file = in_f,language = language)
+                te_sents, orgn_sents = preprocess.easy_encode(path = in_f,language = language)
             else:
                 _, _, _, _, te_sents, _, orgn_sents, _, _ = preprocess.encode2(primary_file = in_f, language = language)
             pred_file = open( out_f, 'w', encoding="utf-8")
