@@ -66,6 +66,6 @@ For proper DRS evaluation with [*Counter*](https://github.com/RikVN/DRS_parsing/
 
 Lasha Abzianidze, Johannes Bjerva, Kilian Evang, Hessel Haagsma, Rik van Noord, Pierre Ludmann, Duc-Duy Nguyen, Johan Bos (2017): [The Parallel Meaning Bank: Towards a Multilingual Corpus of Translations Annotated with Compositional Meaning Representations](https://arxiv.org/abs/1702.03964). Proceedings of EACL.
 
-Evang, K. (2019). Transition-based DRS parsing using stack-LSTMs (https://www.aclweb.org/anthology/W19-1202.pdf). In Proceedings of the IWCS Shared Task on Semantic Parsing.
+Evang, K. (2019). [Transition-based DRS parsing using stack-LSTMs](https://www.aclweb.org/anthology/W19-1202.pdf). In Proceedings of the IWCS Shared Task on Semantic Parsing.
 
-Noord, R., Toral, A., & Bos, J. (2020). Character-level representations improve DRS-based semantic parsing Even in the age of BERT. [arXiv] (https://arxiv.org/abs/2011.04308) preprint arXiv:2011.04308.
+Noord, R., Toral, A., & Bos, J. (2020). Character-level representations improve DRS-based semantic parsing Even in the age of BERT. [arXiv](https://arxiv.org/abs/2011.04308) preprint arXiv:2011.04308.
