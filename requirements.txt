@@ -30,3 +30,4 @@ tqdm==4.56.0
 typing-extensions==3.7.4.3
 urllib3==1.26.3
 word2number==1.1
+googletrans==3.0.0
