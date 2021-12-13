@@ -60,7 +60,7 @@ For proper DRS evaluation with [*Counter*](https://github.com/RikVN/DRS_parsing/
 
 |<a href="https://ibb.co/mJRgMtZ"><img src="https://i.ibb.co/31TQLW6/4lang.png" alt="4lang" border="0"></a>| 
 |:-------------------------------------------------------------------------------------------------------------------:| 
-|The performance of our best model in parsing non English PMB evaluation sets compared with the state of the art (Noord et al. 2021).|
+|The performance of our best model in parsing non English PMB evaluation sets compared with the state of the art (Noord et al. 2020).|
 
 ## References
 
