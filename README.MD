@@ -40,7 +40,7 @@ in which the *Devset* and *Trainset* are required for the training. Training can
 
   a.  with PMB format testing file
 
-      `python main.py train -l en -fi -fm [*model parameter*] -fv [*...\\label_dict.txt*] -fd [*devset*] -f [*testset*]`
+      python main.py train -l en -fi -fm [*model parameter*] -fv [*...\\label_dict.txt*] -fd [*devset*] -f [*testset*]
 
      in which *"label_dict.txt"* is a .json file generated during the training that store all the class information 
 
