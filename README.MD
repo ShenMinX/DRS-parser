@@ -42,7 +42,7 @@ in which the *Devset* and *Trainset* are required for the training. Training can
 
       `python main.py train -l en -fi -fm [*model parameter*] -fv [*...\\label_dict.txt*] -fd [*devset*] -f [*testset*]`
 
-      in which *"label_dict.txt"* is a .json file generated during the training that store all the class information 
+     in which *"label_dict.txt"* is a .json file generated during the training that store all the class information 
 
   b. with plain text file
 
