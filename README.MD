@@ -20,7 +20,7 @@ It is strongly recommended that you set up a Python virtual environment for this
 
 ###### About Google translator Usage
 
-When parsing non-English language data, the parser translate numerial expressions into English first during post-processing e.g., *zwei* -> "two", in order to "digitalize" as required in PMB. The translation is token by token to avoid any word sense disambiguation. We plan to replace it with pure heuristics mechanism.
+When parsing non-English language data, it is possible to let the parser translate numerial expressions into English first during post-processing e.g., *zwei* -> "two", in order to "digitalize" as required in PMB. The translation is token by token to avoid any word sense disambiguation. The code is deactivated during the evaluation, whose the results are below. We plan to extend the rule-based post-processing to support the non-English languages in the future.
 
 ## Command line
 
