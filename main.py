@@ -8,7 +8,7 @@ import random
 import numpy as np
 
 from tokenizers import BertWordPieceTokenizer
-from transformers import BertModel, AdamW, get_linear_schedule_with_warmup
+from transformers import BertModel, AdamW, get_linear_schedule_with_warmup, AutoModel, AutoTokenizer
 
 import mydata
 import preprocess
@@ -16,7 +16,7 @@ from models import Linear_classifiers, Encoder, Decoder
 from postprocess import decode, tuple_to_list, tuple_to_iterlabels
 from postproces_sense import get_ws_simple #,get_ws_nltk
 
-
+torch.manual_seed(33)
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def repeat_and_pad(embed, word_len, max_length):
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     num_warmup_steps = 0
 
-    epochs = 10
+    epochs = 5
 
     bert_embed_size = 768
 
@@ -117,19 +117,29 @@ if __name__ == '__main__':
     start.record()
     
     words, chars, fragments, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, \
-         target_senses, max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\train.txt', encoding = 'utf-8'))
+         target_senses, max_sense_lens = preprocess.encode2(encoding='ret-int', data_file = open('Data\\de\\gold\\train.txt', encoding = 'utf-8'))
 
     print(len(chars.token_to_ix))
 
-    tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+    #tokenizer = BertWordPieceTokenizer("bert-base-cased-vocab.txt", lowercase=False)
+
+    language = "de"
+    bert_models = {"en": "bert-base-cased","nl": "Geotrend/bert-base-nl-cased", "de": "dbmdz/bert-base-german-cased", "it": "dbmdz/bert-base-italian-cased"}
+
+    model_name = bert_models[language]
+    
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    bert_model = AutoModel.from_pretrained(model_name).to(device)
+
 
     train_set = mydata.Dataset(sents,char_sents,targets,target_senses, max_sense_lens, words.token_to_ix, chars.token_to_ix,\
          fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
 
     #bert_model = torch.hub.load('huggingface/pytorch-transformers', 'model', 'bert-base-cased')
 
-    bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
-    bert_model.config.output_hidden_states=True
+    #bert_model = BertModel.from_pretrained('bert-base-cased').to(device)
+    #bert_model.config.output_hidden_states=True
 
     train_loader = data.DataLoader(dataset=train_set, batch_size=hyper_batch_size, shuffle=False, collate_fn=my_collate)
 
@@ -195,7 +205,7 @@ if __name__ == '__main__':
             else:
                 bert_outputs = bert_model(**bert_input)
             
-            embeddings = bert_outputs.hidden_states[7]
+            embeddings = bert_outputs.last_hidden_state
 
             # valid_embeds = [
             #     embeds[valid[:-1]]    #valid: idx(w[0])...idx([SEP])
@@ -342,8 +352,8 @@ if __name__ == '__main__':
         new = 0
         sent_num = 1
         _, _, _, _, _, _, te_sents, te_char_sents, te_targets,\
-             te_target_senses, te_max_sense_lens = preprocess.encode2(data_file = open('Data\\en\\gold\\dev.txt', encoding = 'utf-8'))
-        pred_file = open('Data\\en\\gold\\prediction.clf', 'w', encoding="utf-8")
+             te_target_senses, te_max_sense_lens = preprocess.encode2(encoding='ret-int', data_file = open('Data\\de\\gold\\dev.txt', encoding = 'utf-8'))
+        pred_file = open('Data\\de\\gold\\prediction.clf', 'w', encoding="utf-8")
 
         test_set = mydata.Dataset(te_sents,te_char_sents,te_targets,te_target_senses, te_max_sense_lens, words.token_to_ix, chars.token_to_ix,\
              fragments.token_to_ix, integration_labels.token_to_ix, content_frg_idx, prpname_frg_idx, tokenizer, device)
@@ -354,7 +364,7 @@ if __name__ == '__main__':
              target_f, target_i, words_lens, sentences) in enumerate(test_loader):
 
             bert_outputs = bert_model(**bert_input)
-            embeddings = bert_outputs.hidden_states[7]
+            embeddings = bert_outputs.last_hidden_state
          
             # valid_embeds = [
             #     embeds[valid[:-1]]

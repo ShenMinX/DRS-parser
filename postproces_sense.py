@@ -25,7 +25,7 @@ def num_first(all_senses: list, word: str, concept: str, psum: str, pos:str):
         matches_l = get_close_matches(lemma, candidates, cutoff=0.1)
         if matches:
             return make_ss_label(matches[0], pos, psum)
-        elif matches_l:
+        elif (not matches) and matches_l:
             return make_ss_label(matches_l[0], pos, psum)
         # else:
         #     return make_ss_label(candidates[0], pos, psum) # maybe not optimal
@@ -76,7 +76,7 @@ def get_ws_simple(word:str, ss_chars:list, frg:list):
                 elif cl[2] == '"a.00"':
                     pos = "a"
                 return choose_sense(ss_chars, word, pos)
-
+        return {'\"tom\"':'\"'+''.join(ss_chars)+'\"'}
     return "[ILLFORM]"
 
 

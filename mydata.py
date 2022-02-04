@@ -37,17 +37,42 @@ def _valid_wordpiece_indexes(sent, wp_sent):
         
     return valid_idxs+[len(wp_sent)-1]
 
+# def valid_tokenizing(sent, tokenizer, device):
+
+#     tokenized_sequence = tokenizer.encode(" ".join(sent))
+#     valid_idx = []
+
+#     input_ids = torch.LongTensor(tokenized_sequence.ids).to(device)
+#     token_type_ids = torch.LongTensor(tokenized_sequence.type_ids).to(device)
+#     attention_mask = torch.LongTensor(tokenized_sequence.attention_mask).to(device)
+
+#     valid_idx = _valid_wordpiece_indexes(sent, tokenized_sequence.tokens)
+#     valid_indices = torch.LongTensor(valid_idx).to(device)
+
+#     return input_ids, token_type_ids, attention_mask, valid_indices
+
 def valid_tokenizing(sent, tokenizer, device):
 
-    tokenized_sequence = tokenizer.encode(" ".join(sent))
-    valid_idx = []
+    tokenized_sequence = tokenizer(" ".join(sent), add_special_tokens=True, return_attention_mask=True, return_token_type_ids=True)
 
-    input_ids = torch.LongTensor(tokenized_sequence.ids).to(device)
-    token_type_ids = torch.LongTensor(tokenized_sequence.type_ids).to(device)
-    attention_mask = torch.LongTensor(tokenized_sequence.attention_mask).to(device)
+    input_ids = torch.LongTensor(tokenized_sequence['input_ids']).to(device)
+    token_type_ids = torch.LongTensor(tokenized_sequence['token_type_ids']).to(device)
+    attention_mask = torch.LongTensor(tokenized_sequence['attention_mask']).to(device)
+    wp = tokenizer.tokenize(" ".join(sent))
 
-    valid_idx = _valid_wordpiece_indexes(sent, tokenized_sequence.tokens)
+    valid_idx = _valid_wordpiece_indexes(sent, ["[CLS]"]+wp+["[SEP]"])
     valid_indices = torch.LongTensor(valid_idx).to(device)
+
+
+    try:
+        assert len(sent)+1 == valid_indices.shape[0]
+    except AssertionError:
+        print(valid_indices)
+        print(len(sent)+1)
+        print(tokenized_sequence.words())
+        print(" ".join(sent))
+        print(tokenizer.tokenize(" ".join(sent)))
+
 
     return input_ids, token_type_ids, attention_mask, valid_indices
 

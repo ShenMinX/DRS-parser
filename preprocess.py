@@ -60,7 +60,7 @@ def dictlist_to_tuple(dict):
 def get_words_len(sent):
     return [len(w)+2 for w in sent]
 
-def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
+def encode2(encoding='ret-int', data_file = open('Data\\de\\gold\\train.txt', encoding = 'utf-8')):
     words = dictionary()
     chars = dictionary()
     clauses = dictionary()
@@ -181,7 +181,7 @@ def encode2(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.cl
     return words, chars, clauses, integration_labels, content_frg_idx, prpname_frg_idx, sents, char_sents, targets, target_senses, max_sense_lens
 
 
-def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf', encoding = 'utf-8')):
+def encode(encoding='ret-int', data_file = open('Data\\de\\gold\\dev.txt', encoding = 'utf-8')):
     words = dictionary()
     chars = dictionary()
     clauses = dictionary()
@@ -245,7 +245,6 @@ def encode(encoding='ret-int', data_file = open('Data\\mergedata\\gold\\gold.clf
                 fragment, integration_label = address.abstract(fragment)
             else:
                 integration_label = {}
-
             words.insert(word)
             clauses.insert(tuple(fragment))
             integration_labels.insert(dictlist_to_tuple(integration_label))
